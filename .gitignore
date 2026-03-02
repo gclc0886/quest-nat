@@ -18,9 +18,17 @@ env/
 # Database & user data (do not commit)
 survey-app/data/surveys.db
 survey-app/data/backups/
+survey-app/data/
 
 # Config with API keys
 survey-app/data/config.json
+
+# Source data & exports — never commit
+*.xlsx
+*.xls
+*.csv
+*.db
+surveys_export.xlsx
 
 # Sensitive files
 OPENrouter-key.txt
