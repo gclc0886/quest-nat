@@ -28,11 +28,15 @@ _SAT_BG = {
 }
 
 
+_DARK_TEXT = QColor("#212529")
+
+
 def _ro_item(text: str, bg: QColor | None = None) -> QTableWidgetItem:
     item = QTableWidgetItem(text)
     item.setFlags(Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled)
     if bg:
         item.setBackground(bg)
+        item.setForeground(_DARK_TEXT)   # readable in both light & dark themes
     return item
 
 

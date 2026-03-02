@@ -39,15 +39,19 @@ _STATUS_BG = {
 }
 
 
+_DARK_TEXT = QColor("#212529")
+
+
 def _ro_item(text: str,
              fg: QColor | None = None,
              bg: QColor | None = None) -> QTableWidgetItem:
     item = QTableWidgetItem(text)
     item.setFlags(Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled)
-    if fg:
-        item.setForeground(fg)
     if bg:
         item.setBackground(bg)
+        item.setForeground(fg if fg else _DARK_TEXT)   # dark text on light bg
+    elif fg:
+        item.setForeground(fg)
     return item
 
 
