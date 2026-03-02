@@ -4,7 +4,7 @@ from calendar import monthrange
 from datetime import date
 
 from PyQt6.QtCharts import (
-    QBarCategoryAxis, QBarSeries, QBarSet,
+    QBarCategoryAxis,
     QChart, QChartView,
     QLineSeries, QPieSeries,
     QValueAxis,
@@ -95,7 +95,6 @@ class AnalyticsWidget(QWidget):
         self._summary: AnalyticsSummary | None = None
         self._dark = False
         self._pie_colors: list[QColor] = list(_PIE_COLORS)
-        self._bar_color: QColor = QColor(_RED)
         self._build_ui()
         self.load_data()
 
@@ -108,7 +107,7 @@ class AnalyticsWidget(QWidget):
             QChart.ChartTheme.ChartThemeLight
         )
         bg = QBrush(QColor("#1a1d21" if dark else "#ffffff"))
-        for view in (self._trend_view, self._pie_view, self._bar_view):
+        for view in (self._trend_view, self._pie_view):
             chart = view.chart()
             if chart:
                 chart.setTheme(chart_theme)
@@ -173,19 +172,14 @@ class AnalyticsWidget(QWidget):
         self._trend_view = self._make_chart_view()
         charts_grid.addWidget(self._trend_view, 0, 0, 1, 2)
 
-        # Pie chart (top right)
+        # Pie chart (right)
         self._pie_view = self._make_chart_view()
         charts_grid.addWidget(self._pie_view, 0, 2, 1, 1)
-
-        # Bar chart (bottom, full width)
-        self._bar_view = self._make_chart_view()
-        charts_grid.addWidget(self._bar_view, 1, 0, 1, 3)
 
         charts_grid.setColumnStretch(0, 1)
         charts_grid.setColumnStretch(1, 1)
         charts_grid.setColumnStretch(2, 1)
-        charts_grid.setRowStretch(0, 3)
-        charts_grid.setRowStretch(1, 2)
+        charts_grid.setRowStretch(0, 1)
 
         root.addLayout(charts_grid, stretch=1)
 
@@ -207,7 +201,6 @@ class AnalyticsWidget(QWidget):
         self._refresh_kpi()
         self._refresh_trend()
         self._refresh_pie()
-        self._refresh_bar()
         # Keep chart theme in sync after rebuild
         if self._dark:
             self.set_dark_theme(True)
@@ -218,12 +211,6 @@ class AnalyticsWidget(QWidget):
         trend_chart = self._trend_view.chart()
         if trend_chart and trend_chart.series():
             trend_chart.series()[0].setColor(QColor(_GREEN))
-        # Bar: use whichever colour was active when chart was last built
-        bar_chart = self._bar_view.chart()
-        if bar_chart and bar_chart.series():
-            bar_series = bar_chart.series()[0]
-            if hasattr(bar_series, "barSets") and bar_series.barSets():
-                bar_series.barSets()[0].setColor(self._bar_color)
         # Pie: use whichever colour list was active when chart was last built
         pie_chart = self._pie_view.chart()
         if pie_chart and pie_chart.series():
@@ -407,68 +394,3 @@ class AnalyticsWidget(QWidget):
         chart.addSeries(series)
         self._pie_view.setChart(chart)
 
-    # ------------------------------------------------------------------
-    # Bar chart — employee complaints
-    # ------------------------------------------------------------------
-
-    def _refresh_bar(self) -> None:
-        s = self._summary
-        chart = QChart()
-        chart.legend().setVisible(False)
-        chart.setAnimationOptions(QChart.AnimationOption.NoAnimation)
-
-        if s and s.employee_complaints:
-            # Primary: complaints per employee
-            chart.setTitle("Жалобы на сотрудников (топ-8)")
-            top_emp = s.employee_complaints[:8]
-            bar_set = QBarSet("Жалобы")
-            self._bar_color = QColor(_RED)
-            bar_set.setColor(self._bar_color)
-            for row in top_emp:
-                bar_set.append(row.complaint_count)
-            categories = []
-            for row in top_emp:
-                parts = row.full_name.split()
-                short = parts[0] if len(parts) == 1 else f"{parts[0]} {parts[1][0]}."
-                categories.append(short)
-            max_val = max(row.complaint_count for row in top_emp)
-
-        elif s and s.top_clients:
-            # Fallback: contact count per client (always populated from Excel)
-            chart.setTitle("Активность клиентов (топ по числу контактов)")
-            top_cl = s.top_clients
-            bar_set = QBarSet("Контактов")
-            self._bar_color = QColor(_BLUE)
-            bar_set.setColor(self._bar_color)
-            for row in top_cl:
-                bar_set.append(row.survey_count)
-            categories = []
-            for row in top_cl:
-                parts = row.child_name.split()
-                short = parts[0] if len(parts) == 1 else f"{parts[0]} {parts[1][0]}."
-                categories.append(short)
-            max_val = max(row.survey_count for row in top_cl)
-
-        else:
-            chart.setTitle("Активность клиентов — нет данных")
-            self._bar_view.setChart(chart)
-            return
-
-        series = QBarSeries()
-        series.append(bar_set)
-
-        axis_x = QBarCategoryAxis()
-        axis_x.append(categories)
-
-        axis_y = QValueAxis()
-        axis_y.setRange(0, max_val + 1)
-        axis_y.setLabelFormat("%d")
-        axis_y.setTickCount(min(max_val + 2, 8))
-
-        chart.addSeries(series)
-        chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
-        chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
-        series.attachAxis(axis_x)
-        series.attachAxis(axis_y)
-
-        self._bar_view.setChart(chart)
