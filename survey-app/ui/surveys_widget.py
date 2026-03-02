@@ -6,7 +6,7 @@ from PyQt6.QtCore import QDate, Qt
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QDateEdit, QHBoxLayout, QHeaderView,
-    QLabel, QPushButton, QTableWidget, QTableWidgetItem,
+    QLabel, QMessageBox, QPushButton, QTableWidget, QTableWidgetItem,
     QVBoxLayout, QWidget,
 )
 from sqlalchemy import nullslast
@@ -122,7 +122,11 @@ class SurveysWidget(QWidget):
         self._edit_btn = QPushButton("Редактировать опрос")
         self._edit_btn.setEnabled(False)
         self._edit_btn.clicked.connect(self._edit_survey)
+        self._del_btn = QPushButton("Удалить опрос")
+        self._del_btn.setEnabled(False)
+        self._del_btn.clicked.connect(self._delete_survey)
         btn_bar.addWidget(self._edit_btn)
+        btn_bar.addWidget(self._del_btn)
         btn_bar.addStretch()
         root.addLayout(btn_bar)
 
@@ -172,15 +176,46 @@ class SurveysWidget(QWidget):
                 self._table.setItem(row, col, item)
 
         self._edit_btn.setEnabled(False)
+        self._del_btn.setEnabled(False)
 
     # ------------------------------------------------------------------
     def _on_sel(self) -> None:
         has = bool(self._table.selectionModel().selectedRows())
         self._edit_btn.setEnabled(has)
+        self._del_btn.setEnabled(has)
 
     def _selected_survey(self) -> Survey | None:
         rows = self._table.selectionModel().selectedRows()
         return self._surveys[rows[0].row()] if rows else None
+
+    def _delete_survey(self) -> None:
+        s = self._selected_survey()
+        if s is None:
+            return
+        client_name = s.client.child_name if s.client else "—"
+        dt = s.contact_date.strftime("%d.%m.%Y") if s.contact_date else "без даты"
+        ct = s.contact_type.value if s.contact_type else "без типа"
+        msg = (
+            f"Удалить опрос «{ct}» от {dt}\n"
+            f"клиента «{client_name}»?\n\n"
+            "Это действие нельзя отменить."
+        )
+        reply = QMessageBox.warning(
+            self, "Подтверждение удаления", msg,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self._session.delete(s)
+            self._session.commit()
+            log.info("Deleted survey id=%s", s.id)
+            self.load_data()
+        except Exception as exc:
+            self._session.rollback()
+            log.exception("Failed to delete survey")
+            QMessageBox.critical(self, "Ошибка", str(exc))
 
     def _edit_survey(self) -> None:
         s = self._selected_survey()

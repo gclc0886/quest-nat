@@ -164,9 +164,13 @@ class EmployeesWidget(QWidget):
         self._toggle_btn = QPushButton("Изменить статус")
         self._toggle_btn.setEnabled(False)
         self._toggle_btn.clicked.connect(self._toggle_status)
+        self._del_btn    = QPushButton("Удалить")
+        self._del_btn.setEnabled(False)
+        self._del_btn.clicked.connect(self._delete)
         bar.addWidget(self._add_btn)
         bar.addWidget(self._edit_btn)
         bar.addWidget(self._toggle_btn)
+        bar.addWidget(self._del_btn)
         bar.addStretch()
         root.addLayout(bar)
 
@@ -201,12 +205,14 @@ class EmployeesWidget(QWidget):
             self._table.setItem(row, 3, _ro_item(emp.status.value, color))
         self._edit_btn.setEnabled(False)
         self._toggle_btn.setEnabled(False)
+        self._del_btn.setEnabled(False)
 
     # ------------------------------------------------------------------
     def _on_sel(self) -> None:
         has = bool(self._table.selectionModel().selectedRows())
         self._edit_btn.setEnabled(has)
         self._toggle_btn.setEnabled(has)
+        self._del_btn.setEnabled(has)
 
     def _selected(self) -> Employee | None:
         rows = self._table.selectionModel().selectedRows()
@@ -224,6 +230,32 @@ class EmployeesWidget(QWidget):
         dlg = _EmployeeDialog(self._session, employee=emp, parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             self.load_data()
+
+    def _delete(self) -> None:
+        emp = self._selected()
+        if emp is None:
+            return
+        msg = (
+            f"Удалить сотрудника «{emp.full_name}»?\n\n"
+            "Сотрудник будет удалён из всех клиентских карточек и опросов.\n"
+            "Это действие нельзя отменить."
+        )
+        reply = QMessageBox.warning(
+            self, "Подтверждение удаления", msg,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self._session.delete(emp)
+            self._session.commit()
+            log.info("Deleted employee %r", emp.full_name)
+            self.load_data()
+        except Exception as exc:
+            self._session.rollback()
+            log.exception("Failed to delete employee")
+            QMessageBox.critical(self, "Ошибка", str(exc))
 
     def _toggle_status(self) -> None:
         emp = self._selected()

@@ -127,8 +127,12 @@ class ClientDetailDialog(QDialog):
         self._edit_survey_btn = QPushButton("Редактировать")
         self._edit_survey_btn.setEnabled(False)
         self._edit_survey_btn.clicked.connect(self._edit_survey)
+        self._del_survey_btn = QPushButton("Удалить опрос")
+        self._del_survey_btn.setEnabled(False)
+        self._del_survey_btn.clicked.connect(self._delete_survey)
         survey_bar.addWidget(add_survey_btn)
         survey_bar.addWidget(self._edit_survey_btn)
+        survey_bar.addWidget(self._del_survey_btn)
         survey_bar.addStretch()
         surveys_l.addLayout(survey_bar)
 
@@ -238,6 +242,7 @@ class ClientDetailDialog(QDialog):
                     item.setBackground(_SAT_BG.get(s.satisfaction, row_bg))
                 self._survey_table.setItem(row, col, item)
         self._edit_survey_btn.setEnabled(False)
+        self._del_survey_btn.setEnabled(False)
 
     # ------------------------------------------------------------------
     # Slots
@@ -246,6 +251,7 @@ class ClientDetailDialog(QDialog):
     def _on_survey_sel(self) -> None:
         has = bool(self._survey_table.selectionModel().selectedRows())
         self._edit_survey_btn.setEnabled(has)
+        self._del_survey_btn.setEnabled(has)
 
     def _selected_survey(self) -> Survey | None:
         rows = self._survey_table.selectionModel().selectedRows()
@@ -272,6 +278,34 @@ class ClientDetailDialog(QDialog):
         except Exception as exc:
             self._session.rollback()
             log.exception("Failed to save client info")
+            QMessageBox.critical(self, "Ошибка", str(exc))
+
+    def _delete_survey(self) -> None:
+        s = self._selected_survey()
+        if s is None:
+            return
+        dt = s.contact_date.strftime("%d.%m.%Y") if s.contact_date else "без даты"
+        ct = s.contact_type.value if s.contact_type else "без типа"
+        msg = (
+            f"Удалить опрос «{ct}» от {dt}?\n\n"
+            "Это действие нельзя отменить."
+        )
+        reply = QMessageBox.warning(
+            self, "Подтверждение удаления", msg,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self._session.delete(s)
+            self._session.commit()
+            log.info("Deleted survey id=%s from client id=%s", s.id, self._client.id)
+            self._load_surveys()
+            self.client_updated.emit()
+        except Exception as exc:
+            self._session.rollback()
+            log.exception("Failed to delete survey")
             QMessageBox.critical(self, "Ошибка", str(exc))
 
     def _add_survey(self) -> None:

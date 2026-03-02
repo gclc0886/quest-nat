@@ -176,8 +176,12 @@ class ClientsWidget(QWidget):
         self._open_btn = QPushButton("Открыть карточку")
         self._open_btn.setEnabled(False)
         self._open_btn.clicked.connect(self._open_detail)
+        self._del_btn = QPushButton("Удалить клиента")
+        self._del_btn.setEnabled(False)
+        self._del_btn.clicked.connect(self._delete_client)
         btn_bar.addWidget(self._add_btn)
         btn_bar.addWidget(self._open_btn)
+        btn_bar.addWidget(self._del_btn)
         btn_bar.addStretch()
         root.addLayout(btn_bar)
 
@@ -213,11 +217,13 @@ class ClientsWidget(QWidget):
             ]):
                 self._table.setItem(row, col, _ro_item(val, color))
         self._open_btn.setEnabled(False)
+        self._del_btn.setEnabled(False)
 
     # ------------------------------------------------------------------
     def _on_sel(self) -> None:
         has = bool(self._table.selectionModel().selectedRows())
         self._open_btn.setEnabled(has)
+        self._del_btn.setEnabled(has)
 
     def _selected_client(self) -> Client | None:
         rows = self._table.selectionModel().selectedRows()
@@ -227,6 +233,33 @@ class ClientsWidget(QWidget):
         dlg = _AddClientDialog(self._session, parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             self.load_data()
+
+    def _delete_client(self) -> None:
+        client = self._selected_client()
+        if client is None:
+            return
+        survey_count = len(client.surveys)
+        msg = (
+            f"Удалить клиента «{client.child_name}»?\n\n"
+            f"Вместе с ним будут удалены все его опросы ({survey_count} шт.).\n"
+            "Это действие нельзя отменить."
+        )
+        reply = QMessageBox.warning(
+            self, "Подтверждение удаления", msg,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self._session.delete(client)
+            self._session.commit()
+            log.info("Deleted client id=%s %r", client.id, client.child_name)
+            self.load_data()
+        except Exception as exc:
+            self._session.rollback()
+            log.exception("Failed to delete client")
+            QMessageBox.critical(self, "Ошибка", str(exc))
 
     def _open_detail(self) -> None:
         client = self._selected_client()

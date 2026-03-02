@@ -11,7 +11,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QComboBox, QDialog, QDialogButtonBox, QHBoxLayout, QHeaderView,
-    QLabel, QLineEdit, QListWidget, QPushButton, QTableWidget,
+    QLabel, QLineEdit, QListWidget, QMessageBox, QPushButton, QTableWidget,
     QTableWidgetItem, QVBoxLayout, QWidget,
 )
 from sqlalchemy import or_
@@ -216,8 +216,13 @@ class ComplaintsWidget(QWidget):
         self._edit_btn.setEnabled(False)
         self._edit_btn.clicked.connect(self._edit_survey)
 
+        self._del_btn = QPushButton("Удалить")
+        self._del_btn.setEnabled(False)
+        self._del_btn.clicked.connect(self._delete_survey)
+
         bar.addWidget(self._add_contact_btn)
         bar.addWidget(self._edit_btn)
+        bar.addWidget(self._del_btn)
         root.addLayout(bar)
 
         # ── Table ─────────────────────────────────────────────────────
@@ -289,6 +294,7 @@ class ComplaintsWidget(QWidget):
 
         self._add_contact_btn.setEnabled(False)
         self._edit_btn.setEnabled(False)
+        self._del_btn.setEnabled(False)
         log.debug("ComplaintsWidget: loaded %d rows (filter=%s)",
                   len(self._surveys), status_filter)
 
@@ -303,6 +309,7 @@ class ComplaintsWidget(QWidget):
         can_add = has and s.situation_status == SituationStatus.IN_PROGRESS
         self._add_contact_btn.setEnabled(can_add)
         self._edit_btn.setEnabled(has)
+        self._del_btn.setEnabled(has)
 
     def _selected_survey(self) -> Survey | None:
         rows = self._table.selectionModel().selectedRows()
@@ -311,6 +318,34 @@ class ComplaintsWidget(QWidget):
     # ------------------------------------------------------------------
     # Actions
     # ------------------------------------------------------------------
+
+    def _delete_survey(self) -> None:
+        s = self._selected_survey()
+        if s is None:
+            return
+        client_name = s.client.child_name if s.client else "—"
+        dt = s.contact_date.strftime("%d.%m.%Y") if s.contact_date else "без даты"
+        msg = (
+            f"Удалить запись жалобы от {dt}\n"
+            f"клиента «{client_name}»?\n\n"
+            "Это действие нельзя отменить."
+        )
+        reply = QMessageBox.warning(
+            self, "Подтверждение удаления", msg,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self._session.delete(s)
+            self._session.commit()
+            log.info("Deleted complaint survey id=%s", s.id)
+            self.load_data()
+        except Exception as exc:
+            self._session.rollback()
+            log.exception("Failed to delete complaint survey")
+            QMessageBox.critical(self, "Ошибка", str(exc))
 
     def _new_complaint(self) -> None:
         """Pick a client, then open a survey form to log a new complaint."""
