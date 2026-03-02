@@ -325,3 +325,101 @@ QLabel {
     background: transparent;
     color: #e9ecef;
 }
+
+/* ── ListWidget ───────────────────────────────────────── */
+QListWidget {
+    background: #2c3034;
+    border: 1px solid #3d4147;
+    border-radius: 4px;
+    color: #e9ecef;
+    alternate-background-color: #323840;
+    outline: none;
+}
+
+QListWidget::item {
+    padding: 5px 8px;
+    border-radius: 3px;
+    color: #e9ecef;
+}
+
+QListWidget::item:alternate {
+    background: #323840;
+}
+
+QListWidget::item:selected {
+    background: #1e3a5f;
+    color: #e9ecef;
+}
+
+QListWidget::item:hover:!selected {
+    background: #343a40;
+}
+
+/* ── ProgressBar ──────────────────────────────────────── */
+QProgressBar {
+    background: #2c3034;
+    border: 1px solid #3d4147;
+    border-radius: 4px;
+    color: #e9ecef;
+    text-align: center;
+    min-height: 20px;
+}
+
+QProgressBar::chunk {
+    background: #1a5fb4;
+    border-radius: 3px;
+    margin: 1px;
+}
+
+/* ── Calendar (QDateEdit popup) ───────────────────────── */
+QCalendarWidget {
+    background: #212529;
+    color: #e9ecef;
+}
+
+QCalendarWidget QWidget#qt_calendar_navigationbar {
+    background: #2c3034;
+    border-bottom: 1px solid #3d4147;
+}
+
+QCalendarWidget QToolButton {
+    background: transparent;
+    color: #e9ecef;
+    border: none;
+    border-radius: 3px;
+    padding: 4px 8px;
+    font-weight: 500;
+}
+
+QCalendarWidget QToolButton:hover {
+    background: #343a40;
+}
+
+QCalendarWidget QToolButton:pressed {
+    background: #1a5fb4;
+}
+
+QCalendarWidget QSpinBox {
+    background: #2c3034;
+    color: #e9ecef;
+    border: 1px solid #3d4147;
+    border-radius: 3px;
+    padding: 2px 4px;
+}
+
+QCalendarWidget QAbstractItemView {
+    background: #212529;
+    color: #e9ecef;
+    selection-background-color: #1a5fb4;
+    selection-color: #e9ecef;
+    gridline-color: #3d4147;
+    border: none;
+}
+
+QCalendarWidget QAbstractItemView:disabled {
+    color: #495057;
+}
+
+QCalendarWidget QWidget {
+    alternate-background-color: #252930;
+}

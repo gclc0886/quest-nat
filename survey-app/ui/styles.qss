@@ -317,3 +317,102 @@ QFrame[frameShape="1"] {
 QLabel {
     background: transparent;
 }
+
+/* ── ListWidget ───────────────────────────────────────── */
+QListWidget {
+    background: #ffffff;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    color: #212529;
+    alternate-background-color: #f8f9fa;
+    outline: none;
+}
+
+QListWidget::item {
+    padding: 5px 8px;
+    border-radius: 3px;
+    color: #212529;
+}
+
+QListWidget::item:alternate {
+    background: #f8f9fa;
+}
+
+QListWidget::item:selected {
+    background: #cfe2ff;
+    color: #212529;
+}
+
+QListWidget::item:hover:!selected {
+    background: #e9ecef;
+}
+
+/* ── ProgressBar ──────────────────────────────────────── */
+QProgressBar {
+    background: #e9ecef;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    color: #212529;
+    text-align: center;
+    min-height: 20px;
+}
+
+QProgressBar::chunk {
+    background: #0d6efd;
+    border-radius: 3px;
+    margin: 1px;
+}
+
+/* ── Calendar (QDateEdit popup) ───────────────────────── */
+QCalendarWidget {
+    background: #ffffff;
+    color: #212529;
+}
+
+QCalendarWidget QWidget#qt_calendar_navigationbar {
+    background: #f0f2f5;
+    border-bottom: 1px solid #dee2e6;
+}
+
+QCalendarWidget QToolButton {
+    background: transparent;
+    color: #212529;
+    border: none;
+    border-radius: 3px;
+    padding: 4px 8px;
+    font-weight: 500;
+}
+
+QCalendarWidget QToolButton:hover {
+    background: #e9ecef;
+}
+
+QCalendarWidget QToolButton:pressed {
+    background: #0d6efd;
+    color: white;
+}
+
+QCalendarWidget QSpinBox {
+    background: #ffffff;
+    color: #212529;
+    border: 1px solid #ced4da;
+    border-radius: 3px;
+    padding: 2px 4px;
+}
+
+QCalendarWidget QAbstractItemView {
+    background: #ffffff;
+    color: #212529;
+    selection-background-color: #0d6efd;
+    selection-color: white;
+    gridline-color: #dee2e6;
+    border: none;
+}
+
+QCalendarWidget QAbstractItemView:disabled {
+    color: #adb5bd;
+}
+
+QCalendarWidget QWidget {
+    alternate-background-color: #f8f9fa;
+}
