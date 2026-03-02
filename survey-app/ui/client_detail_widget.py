@@ -191,7 +191,7 @@ class ClientDetailDialog(QDialog):
 
         assigned_ids = {e.id for e in self._client.specialists}
         for idx, emp in enumerate(employees):
-            cb = QCheckBox(f"{emp.full_name} ({emp.position.value})")
+            cb = QCheckBox(f"{emp.full_name} ({emp.positions_display})")
             cb.setChecked(emp.id in assigned_ids)
             cb.toggled.connect(
                 lambda checked, e=emp: self._on_specialist_toggled(e, checked)

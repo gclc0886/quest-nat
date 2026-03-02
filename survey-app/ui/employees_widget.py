@@ -4,9 +4,9 @@ import logging
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
-    QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout,
-    QHeaderView, QLineEdit, QMessageBox, QPushButton, QTableWidget,
-    QTableWidgetItem, QVBoxLayout, QWidget,
+    QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout,
+    QGroupBox, QHBoxLayout, QHeaderView, QLineEdit, QMessageBox,
+    QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 from sqlalchemy.orm import Session
 
@@ -42,36 +42,46 @@ class _EmployeeDialog(QDialog):
     def __init__(self, session: Session, employee: Employee | None = None,
                  parent=None):
         super().__init__(parent)
-        self._session = session
+        self._session  = session
         self._employee = employee
         self._build_ui()
         if employee:
             self._populate()
-        self.setWindowTitle("Редактировать сотрудника" if employee else "Новый сотрудник")
+        self.setWindowTitle(
+            "Редактировать сотрудника" if employee else "Новый сотрудник"
+        )
         self.setMinimumWidth(380)
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
-        f = QFormLayout()
+        f    = QFormLayout()
 
         self._name_edit = QLineEdit()
         self._name_edit.setPlaceholderText("Иванова Анна Петровна")
         f.addRow("ФИО:", self._name_edit)
+        root.addLayout(f)
 
-        self._pos_cb = QComboBox()
+        # ── Positions checkboxes ──────────────────────────────────────
+        pos_group  = QGroupBox("Должности")
+        pos_layout = QVBoxLayout(pos_group)
+        pos_layout.setSpacing(4)
+        self._pos_checks: dict[EmployeePosition, QCheckBox] = {}
         for pos in EmployeePosition:
-            self._pos_cb.addItem(pos.value, pos)
-        f.addRow("Должность:", self._pos_cb)
+            cb = QCheckBox(pos.value)
+            self._pos_checks[pos] = cb
+            pos_layout.addWidget(cb)
+        root.addWidget(pos_group)
 
+        # ── Status (edit-mode only) ───────────────────────────────────
         if self._employee:
+            st_form = QFormLayout()
             self._status_cb: QComboBox | None = QComboBox()
             for st in EmployeeStatus:
                 self._status_cb.addItem(st.value, st)
-            f.addRow("Статус:", self._status_cb)
+            st_form.addRow("Статус:", self._status_cb)
+            root.addLayout(st_form)
         else:
             self._status_cb = None
-
-        root.addLayout(f)
 
         btns = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save |
@@ -85,7 +95,9 @@ class _EmployeeDialog(QDialog):
 
     def _populate(self) -> None:
         self._name_edit.setText(self._employee.full_name)
-        _set_combo(self._pos_cb, self._employee.position)
+        current = set(self._employee.positions_list)
+        for pos, cb in self._pos_checks.items():
+            cb.setChecked(pos.value in current)
         if self._status_cb:
             _set_combo(self._status_cb, self._employee.status)
 
@@ -94,21 +106,33 @@ class _EmployeeDialog(QDialog):
         if not name:
             QMessageBox.warning(self, "Ошибка", "Введите ФИО сотрудника.")
             return
+
+        selected = [
+            pos.value
+            for pos, cb in self._pos_checks.items()
+            if cb.isChecked()
+        ]
+        if not selected:
+            QMessageBox.warning(self, "Ошибка", "Выберите хотя бы одну должность.")
+            return
+
+        position_str = ",".join(selected)
+
         try:
             if self._employee is None:
                 emp = Employee(
                     full_name=name,
-                    position=self._pos_cb.currentData(),
+                    position=position_str,
                     status=EmployeeStatus.ACTIVE,
                 )
                 self._session.add(emp)
             else:
                 self._employee.full_name = name
-                self._employee.position = self._pos_cb.currentData()
+                self._employee.position  = position_str
                 if self._status_cb:
                     self._employee.status = self._status_cb.currentData()
             self._session.commit()
-            log.info("Employee saved: %r", name)
+            log.info("Employee saved: %r positions=%s", name, position_str)
             self.accept()
         except Exception as exc:
             self._session.rollback()
@@ -123,7 +147,7 @@ class _EmployeeDialog(QDialog):
 class EmployeesWidget(QWidget):
     def __init__(self, session: Session, parent=None):
         super().__init__(parent)
-        self._session = session
+        self._session   = session
         self._employees: list[Employee] = []
         self._build_ui()
         self.load_data()
@@ -131,11 +155,10 @@ class EmployeesWidget(QWidget):
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
 
-        # Toolbar
         bar = QHBoxLayout()
-        self._add_btn = QPushButton("Добавить")
+        self._add_btn    = QPushButton("Добавить")
         self._add_btn.clicked.connect(self._add)
-        self._edit_btn = QPushButton("Редактировать")
+        self._edit_btn   = QPushButton("Редактировать")
         self._edit_btn.setEnabled(False)
         self._edit_btn.clicked.connect(self._edit)
         self._toggle_btn = QPushButton("Изменить статус")
@@ -147,9 +170,8 @@ class EmployeesWidget(QWidget):
         bar.addStretch()
         root.addLayout(bar)
 
-        # Table
         self._table = QTableWidget(0, 4)
-        self._table.setHorizontalHeaderLabels(["ID", "ФИО", "Должность", "Статус"])
+        self._table.setHorizontalHeaderLabels(["ID", "ФИО", "Должности", "Статус"])
         hh = self._table.horizontalHeader()
         hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         hh.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
@@ -172,10 +194,10 @@ class EmployeesWidget(QWidget):
         gray = QColor("#888888")
         for row, emp in enumerate(self._employees):
             inactive = emp.status == EmployeeStatus.INACTIVE
-            color = gray if inactive else None
+            color    = gray if inactive else None
             self._table.setItem(row, 0, _ro_item(str(emp.id), color))
             self._table.setItem(row, 1, _ro_item(emp.full_name, color))
-            self._table.setItem(row, 2, _ro_item(emp.position.value, color))
+            self._table.setItem(row, 2, _ro_item(emp.positions_display, color))
             self._table.setItem(row, 3, _ro_item(emp.status.value, color))
         self._edit_btn.setEnabled(False)
         self._toggle_btn.setEnabled(False)

@@ -41,46 +41,46 @@ survey_specialists_snapshot = Table(
 # ---------------------------------------------------------------------------
 
 class EmployeePosition(str, enum.Enum):
-    LOGOPED = "Логопед"
+    LOGOPED    = "Логопед"
     DEFECTOLOG = "Дефектолог"
-    PSYCHOLOG = "Психолог"
-    NEUROPSY = "Нейропсихолог"
-    SI = "СИ"
-    ADMIN = "Администратор"
+    PSYCHOLOG  = "Психолог"
+    NEUROPSY   = "Нейропсихолог"
+    SI         = "СИ"
+    ADMIN      = "Администратор"
 
 
 class EmployeeStatus(str, enum.Enum):
-    ACTIVE = "Активен"
+    ACTIVE   = "Активен"
     INACTIVE = "Не работает"
 
 
 class ClientStatus(str, enum.Enum):
-    ACTIVE = "Активен"
+    ACTIVE   = "Активен"
     FINISHED = "Завершён"
 
 
 class ContactType(str, enum.Enum):
-    PLANNED_1 = "Плановый 1"
-    PLANNED_2 = "Плановый 2"
-    PLANNED_3 = "Плановый 3"
+    PLANNED_1  = "Плановый 1"
+    PLANNED_2  = "Плановый 2"
+    PLANNED_3  = "Плановый 3"
     ADDITIONAL = "Дополнительный"
 
 
 class Satisfaction(str, enum.Enum):
-    SATISFIED = "Доволен"
+    SATISFIED   = "Доволен"
     UNSATISFIED = "Не доволен"
 
 
 class Misunderstanding(str, enum.Enum):
     YES = "Да"
-    NO = "Нет"
+    NO  = "Нет"
 
 
 class SituationStatus(str, enum.Enum):
     IN_PROGRESS = "В процессе"
-    RESOLVED = "Улажена"
-    UNRESOLVED = "Не улажена"
-    CLOSED = "Завершена"
+    RESOLVED    = "Улажена"
+    UNRESOLVED  = "Не улажена"
+    CLOSED      = "Завершена"
 
 
 # ---------------------------------------------------------------------------
@@ -90,12 +90,14 @@ class SituationStatus(str, enum.Enum):
 class Employee(Base):
     __tablename__ = "employees"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id:        Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     full_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    position: Mapped[EmployeePosition] = mapped_column(
-        Enum(EmployeePosition, values_callable=lambda e: [x.value for x in e]),
-        nullable=False,
-    )
+
+    # Stores one or more EmployeePosition values joined by comma,
+    # e.g. "Логопед" or "Логопед,Дефектолог".
+    # String instead of Enum to support multiple positions per employee.
+    position: Mapped[str] = mapped_column(String(500), nullable=False)
+
     status: Mapped[EmployeeStatus] = mapped_column(
         Enum(EmployeeStatus, values_callable=lambda e: [x.value for x in e]),
         nullable=False,
@@ -113,18 +115,34 @@ class Employee(Base):
         "Survey", secondary=survey_specialists_snapshot, back_populates="specialists_snapshot"
     )
 
+    # ------------------------------------------------------------------
+    # Position helpers
+    # ------------------------------------------------------------------
+
+    @property
+    def positions_list(self) -> list[str]:
+        """Returns position values as a list, e.g. ['Логопед', 'Дефектолог']."""
+        if not self.position:
+            return []
+        return [p.strip() for p in self.position.split(",") if p.strip()]
+
+    @property
+    def positions_display(self) -> str:
+        """Human-readable comma-separated string, e.g. 'Логопед, Дефектолог'."""
+        return ", ".join(self.positions_list)
+
     def __repr__(self) -> str:
-        return f"<Employee id={self.id} name={self.full_name!r} position={self.position.value}>"
+        return f"<Employee id={self.id} name={self.full_name!r} position={self.position!r}>"
 
 
 class Client(Base):
     __tablename__ = "clients"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    child_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    id:          Mapped[int]           = mapped_column(Integer, primary_key=True, autoincrement=True)
+    child_name:  Mapped[str]           = mapped_column(String(200), nullable=False)
     parent_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
-    start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    status: Mapped[ClientStatus] = mapped_column(
+    start_date:  Mapped[Optional[date]]= mapped_column(Date, nullable=True)
+    status:      Mapped[ClientStatus]  = mapped_column(
         Enum(ClientStatus, values_callable=lambda e: [x.value for x in e]),
         nullable=False,
         default=ClientStatus.ACTIVE,
@@ -145,16 +163,16 @@ class Client(Base):
 class Survey(Base):
     __tablename__ = "surveys"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    client_id: Mapped[int] = mapped_column(
+    id:         Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    client_id:  Mapped[int] = mapped_column(
         Integer, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False
     )
-    contact_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    contact_date: Mapped[Optional[date]]        = mapped_column(Date, nullable=True)
     contact_type: Mapped[Optional[ContactType]] = mapped_column(
         Enum(ContactType, values_callable=lambda e: [x.value for x in e]),
         nullable=True,
     )
-    conducted_by: Mapped[str] = mapped_column(String(200), nullable=False, default="Я")
+    conducted_by: Mapped[str]           = mapped_column(String(200), nullable=False, default="Я")
     comment_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Satisfaction block
@@ -169,20 +187,20 @@ class Survey(Base):
     )
 
     # Complaint: employee
-    complaint_employee: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    complaint_employee:      Mapped[bool]          = mapped_column(Boolean, nullable=False, default=False)
     complaint_employee_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Complaint: conditions
-    complaint_conditions: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    complaint_conditions:      Mapped[bool]          = mapped_column(Boolean, nullable=False, default=False)
     complaint_conditions_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Situation management
-    situation_status: Mapped[Optional[SituationStatus]] = mapped_column(
+    situation_status:    Mapped[Optional[SituationStatus]] = mapped_column(
         Enum(SituationStatus, values_callable=lambda e: [x.value for x in e]),
         nullable=True,
     )
-    resolution_result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    non_resolution_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    resolution_result:    Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    non_resolution_reason:Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships
     client: Mapped[Client] = relationship("Client", back_populates="surveys")

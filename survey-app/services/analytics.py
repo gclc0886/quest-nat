@@ -180,7 +180,7 @@ def get_employee_complaint_counts(session: Session) -> list[EmployeeComplaintRow
         EmployeeComplaintRow(
             employee_id=r.id,
             full_name=r.full_name,
-            position=r.position if isinstance(r.position, str) else r.position.value,
+            position=r.position or "",
             complaint_count=r.cnt,
         )
         for r in rows
