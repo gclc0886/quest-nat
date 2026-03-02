@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from models import (
     Client, ClientStatus, ContactType, Employee,
-    Misunderstanding, Satisfaction, SituationStatus,
+    FeedbackStatus, Misunderstanding, Satisfaction, SituationStatus,
     Survey, survey_complaint_employees,
 )
 
@@ -66,6 +66,16 @@ class MonthlyPoint:
 
 
 @dataclass
+class SurveyFeedbackStats:
+    """Metrics for the 'Аналитика по опросам' block."""
+    surveys_sent: int       # clients with start_date filled
+    feedback_sent: int      # clients with feedback_status == SENT
+    feedback_not_sent: int  # clients with feedback_status == NOT_SENT
+    misunderstanding: int   # clients who have at least 1 survey with misunderstanding==YES
+    resolved: int           # surveys with situation_status == RESOLVED
+
+
+@dataclass
 class AnalyticsSummary:
     total_clients: int
     active_clients: int
@@ -81,6 +91,10 @@ class AnalyticsSummary:
     monthly_count: list[MonthlyPoint] = field(default_factory=list)
     contact_type_dist: dict[str, int] = field(default_factory=dict)
     top_clients: list[ClientSurveyRow] = field(default_factory=list)
+    # Survey feedback analytics block
+    survey_feedback: SurveyFeedbackStats = field(
+        default_factory=lambda: SurveyFeedbackStats(0, 0, 0, 0, 0)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -325,6 +339,59 @@ def get_top_clients_by_surveys(session: Session,
     return result
 
 
+def get_survey_feedback_stats(session: Session,
+                               from_date: Optional[date] = None,
+                               to_date: Optional[date] = None) -> SurveyFeedbackStats:
+    """
+    Compute the five 'Аналитика по опросам' KPIs.
+
+    surveys_sent    — clients with start_date filled (опрос направлен)
+    feedback_sent   — clients where feedback_status == SENT
+    feedback_not_sent — clients where feedback_status == NOT_SENT
+    misunderstanding — distinct clients who have ≥1 survey with misunderstanding==YES
+    resolved        — survey records with situation_status == RESOLVED (date-filtered)
+    """
+    surveys_sent = session.query(Client).filter(
+        Client.start_date.isnot(None)
+    ).count()
+
+    feedback_sent = session.query(Client).filter(
+        Client.feedback_status == FeedbackStatus.SENT
+    ).count()
+
+    feedback_not_sent = session.query(Client).filter(
+        Client.feedback_status == FeedbackStatus.NOT_SENT
+    ).count()
+
+    mis_q = (
+        session.query(Survey.client_id)
+        .filter(Survey.misunderstanding == Misunderstanding.YES)
+        .distinct()
+    )
+    misunderstanding = session.query(Client).filter(
+        Client.id.in_(mis_q)
+    ).count()
+
+    q_res = session.query(Survey).filter(
+        Survey.situation_status == SituationStatus.RESOLVED
+    )
+    if from_date:
+        q_res = q_res.filter(Survey.contact_date >= from_date)
+    if to_date:
+        q_res = q_res.filter(Survey.contact_date <= to_date)
+    resolved = q_res.count()
+
+    stats = SurveyFeedbackStats(
+        surveys_sent=surveys_sent,
+        feedback_sent=feedback_sent,
+        feedback_not_sent=feedback_not_sent,
+        misunderstanding=misunderstanding,
+        resolved=resolved,
+    )
+    log.debug("SurveyFeedbackStats: %s", stats)
+    return stats
+
+
 # ---------------------------------------------------------------------------
 # Full summary (used for dashboard)
 # ---------------------------------------------------------------------------
@@ -353,6 +420,7 @@ def get_analytics_summary(session: Session,
         monthly_count=get_monthly_survey_count(session, from_date, to_date),
         contact_type_dist=get_contact_type_distribution(session, from_date, to_date),
         top_clients=get_top_clients_by_surveys(session),
+        survey_feedback=get_survey_feedback_stats(session, from_date, to_date),
     )
     log.info("AnalyticsSummary: clients=%d surveys=%d sat_pct=%.1f conflicts_in_progress=%d",
              total_clients, total_surveys,

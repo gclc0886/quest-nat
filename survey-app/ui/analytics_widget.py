@@ -139,7 +139,7 @@ class AnalyticsWidget(QWidget):
         bar.addStretch()
         root.addLayout(bar)
 
-        # ── KPI cards row ─────────────────────────────────────────────
+        # ── KPI cards row 1 — основные показатели ────────────────────
         kpi_row = QHBoxLayout()
         self._card_sat   = _KpiCard("Удовлетворённость")
         self._card_conf  = _KpiCard("Конфликтов (в работе)")
@@ -148,6 +148,22 @@ class AnalyticsWidget(QWidget):
         for card in (self._card_sat, self._card_conf, self._card_act, self._card_total):
             kpi_row.addWidget(card)
         root.addLayout(kpi_row)
+
+        # ── KPI cards row 2 — аналитика по опросам ───────────────────
+        fb_label = QLabel("Аналитика по опросам")
+        fb_label.setStyleSheet("font-size: 13px; font-weight: bold; color: #555; margin-top: 4px;")
+        root.addWidget(fb_label)
+
+        fb_row = QHBoxLayout()
+        self._card_sent     = _KpiCard("Направлено опросов")
+        self._card_fb_yes   = _KpiCard("Дали обратную связь")
+        self._card_fb_no    = _KpiCard("Не дали обратную связь")
+        self._card_mis      = _KpiCard("С недопониманием")
+        self._card_resolved = _KpiCard("Улажено ситуаций")
+        for card in (self._card_sent, self._card_fb_yes, self._card_fb_no,
+                     self._card_mis, self._card_resolved):
+            fb_row.addWidget(card)
+        root.addLayout(fb_row)
 
         # ── Charts grid ───────────────────────────────────────────────
         charts_grid = QGridLayout()
@@ -261,6 +277,20 @@ class AnalyticsWidget(QWidget):
 
         # Total surveys
         self._card_total.set_value(str(s.total_surveys), _GRAY)
+
+        # ── Survey feedback KPIs ──────────────────────────────────────
+        fb = s.survey_feedback
+        self._card_sent.set_value(str(fb.surveys_sent), _BLUE)
+        self._card_fb_yes.set_value(str(fb.feedback_sent), _GREEN)
+        self._card_fb_no.set_value(
+            str(fb.feedback_not_sent),
+            _YELLOW if fb.feedback_not_sent > 0 else _GREEN,
+        )
+        self._card_mis.set_value(
+            str(fb.misunderstanding),
+            _RED if fb.misunderstanding > 0 else _GREEN,
+        )
+        self._card_resolved.set_value(str(fb.resolved), _GREEN)
 
     # ------------------------------------------------------------------
     # Trend line chart

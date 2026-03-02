@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
 from sqlalchemy import nullslast
 from sqlalchemy.orm import Session
 
-from models import Client, ClientStatus, Employee, Satisfaction, SituationStatus, Survey
+from models import Client, ClientStatus, Employee, FeedbackStatus, Satisfaction, SituationStatus, Survey
 
 log = logging.getLogger(__name__)
 
@@ -97,18 +97,48 @@ class ClientDetailDialog(QDialog):
         self._start_date_edit.setDisplayFormat("dd.MM.yyyy")
         self._start_date_edit.setEnabled(False)
         self._start_date_check.toggled.connect(self._start_date_edit.setEnabled)
-        date_row = QWidget()
-        date_row_l = QHBoxLayout(date_row)
-        date_row_l.setContentsMargins(0, 0, 0, 0)
-        date_row_l.addWidget(self._start_date_check)
-        date_row_l.addWidget(self._start_date_edit)
-        date_row_l.addStretch()
-        info_f.addRow("Дата начала:", date_row)
+        self._start_date_edit.dateChanged.connect(self._update_duration_label)
+        start_row = QWidget()
+        start_row_l = QHBoxLayout(start_row)
+        start_row_l.setContentsMargins(0, 0, 0, 0)
+        start_row_l.addWidget(self._start_date_check)
+        start_row_l.addWidget(self._start_date_edit)
+        start_row_l.addStretch()
+        info_f.addRow("Дата начала:", start_row)
+
+        # ── Дата окончания ────────────────────────────────────────────
+        self._end_date_check = QCheckBox("Указать дату")
+        self._end_date_edit = QDateEdit(QDate.currentDate())
+        self._end_date_edit.setCalendarPopup(True)
+        self._end_date_edit.setDisplayFormat("dd.MM.yyyy")
+        self._end_date_edit.setEnabled(False)
+        self._end_date_check.toggled.connect(self._end_date_edit.setEnabled)
+        self._end_date_check.toggled.connect(self._update_duration_label)
+        self._end_date_edit.dateChanged.connect(self._update_duration_label)
+        end_row = QWidget()
+        end_row_l = QHBoxLayout(end_row)
+        end_row_l.setContentsMargins(0, 0, 0, 0)
+        end_row_l.addWidget(self._end_date_check)
+        end_row_l.addWidget(self._end_date_edit)
+        end_row_l.addStretch()
+        info_f.addRow("Дата окончания:", end_row)
+
+        # ── Продолжительность (read-only label) ───────────────────────
+        self._duration_lbl = QLabel("—")
+        self._duration_lbl.setStyleSheet("color: #6c757d; font-style: italic;")
+        info_f.addRow("Продолжительность:", self._duration_lbl)
 
         self._status_cb = QComboBox()
         for st in ClientStatus:
             self._status_cb.addItem(st.value, st)
         info_f.addRow("Статус:", self._status_cb)
+
+        # ── Статус обратной связи ─────────────────────────────────────
+        self._feedback_cb = QComboBox()
+        self._feedback_cb.addItem("—", None)
+        for fs in FeedbackStatus:
+            self._feedback_cb.addItem(fs.value, fs)
+        info_f.addRow("Статус обратной связи:", self._feedback_cb)
 
         save_btn = QPushButton("Сохранить изменения")
         save_btn.clicked.connect(self._save_client_info)
@@ -177,9 +207,38 @@ class ClientDetailDialog(QDialog):
             self._start_date_edit.setDate(
                 QDate(c.start_date.year, c.start_date.month, c.start_date.day)
             )
+        if c.end_date:
+            self._end_date_check.setChecked(True)
+            self._end_date_edit.setDate(
+                QDate(c.end_date.year, c.end_date.month, c.end_date.day)
+            )
         _set_combo(self._status_cb, c.status)
+        _set_combo(self._feedback_cb, c.feedback_status)
+        self._update_duration_label()
         self._load_specialists()
         self._load_surveys()
+
+    def _update_duration_label(self) -> None:
+        """Recalculate and display duration from current widget values."""
+        if not (self._start_date_check.isChecked() and self._end_date_check.isChecked()):
+            self._duration_lbl.setText("—")
+            return
+        qsd = self._start_date_edit.date()
+        qed = self._end_date_edit.date()
+        start = date(qsd.year(), qsd.month(), qsd.day())
+        end   = date(qed.year(), qed.month(), qed.day())
+        if end < start:
+            self._duration_lbl.setText("⚠ Дата окончания раньше даты начала")
+            self._duration_lbl.setStyleSheet("color: #dc3545; font-style: italic;")
+            return
+        # Temporarily create a mock client to reuse the property logic
+        from models import Client as _C
+        tmp = _C.__new__(_C)
+        tmp.start_date = start
+        tmp.end_date   = end
+        text = tmp.duration_display or "0 дн"
+        self._duration_lbl.setText(text)
+        self._duration_lbl.setStyleSheet("color: #6c757d; font-style: italic;")
 
     def _load_specialists(self) -> None:
         while self._spec_grid.count():
@@ -266,15 +325,31 @@ class ClientDetailDialog(QDialog):
         if not name:
             QMessageBox.warning(self, "Ошибка", "ФИО ребёнка не может быть пустым.")
             return
+
+        start_date = None
+        if self._start_date_check.isChecked():
+            qd = self._start_date_edit.date()
+            start_date = date(qd.year(), qd.month(), qd.day())
+
+        end_date = None
+        if self._end_date_check.isChecked():
+            qd = self._end_date_edit.date()
+            end_date = date(qd.year(), qd.month(), qd.day())
+
+        if start_date and end_date and end_date < start_date:
+            QMessageBox.warning(
+                self, "Ошибка",
+                "Дата окончания не может быть раньше даты начала."
+            )
+            return
+
         try:
-            self._client.child_name = name
-            self._client.parent_name = self._parent_name_edit.text().strip() or None
-            if self._start_date_check.isChecked():
-                qd = self._start_date_edit.date()
-                self._client.start_date = date(qd.year(), qd.month(), qd.day())
-            else:
-                self._client.start_date = None
-            self._client.status = self._status_cb.currentData()
+            self._client.child_name   = name
+            self._client.parent_name  = self._parent_name_edit.text().strip() or None
+            self._client.start_date   = start_date
+            self._client.end_date     = end_date
+            self._client.status       = self._status_cb.currentData()
+            self._client.feedback_status = self._feedback_cb.currentData()
             self._session.commit()
             log.info("Client id=%s info saved", self._client.id)
             self.client_updated.emit()

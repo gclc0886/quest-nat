@@ -28,6 +28,22 @@ def _ro_item(text: str, color: QColor | None = None) -> QTableWidgetItem:
     return item
 
 
+class _DurationItem(QTableWidgetItem):
+    """Table item for 'Продолжительность' that sorts numerically by total days."""
+
+    def __init__(self, text: str, sort_days: int, color: QColor | None = None):
+        super().__init__(text)
+        self._sort_days = sort_days
+        self.setFlags(Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled)
+        if color:
+            self.setForeground(color)
+
+    def __lt__(self, other: QTableWidgetItem) -> bool:  # type: ignore[override]
+        if isinstance(other, _DurationItem):
+            return self._sort_days < other._sort_days
+        return super().__lt__(other)
+
+
 # ---------------------------------------------------------------------------
 # Add-client dialog
 # ---------------------------------------------------------------------------
@@ -39,7 +55,7 @@ class _AddClientDialog(QDialog):
         self._created_client: Client | None = None
         self._build_ui()
         self.setWindowTitle("Новый клиент")
-        self.setMinimumWidth(420)
+        self.setMinimumWidth(440)
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -53,19 +69,35 @@ class _AddClientDialog(QDialog):
         self._parent_name_edit.setPlaceholderText("необязательно")
         f.addRow("ФИО родителя:", self._parent_name_edit)
 
+        # ── Дата начала ───────────────────────────────────────────────
         self._start_date_check = QCheckBox("Указать дату начала")
         self._start_date_edit = QDateEdit(QDate.currentDate())
         self._start_date_edit.setCalendarPopup(True)
         self._start_date_edit.setDisplayFormat("dd.MM.yyyy")
         self._start_date_edit.setEnabled(False)
         self._start_date_check.toggled.connect(self._start_date_edit.setEnabled)
-        date_row = QWidget()
-        date_row_l = QHBoxLayout(date_row)
-        date_row_l.setContentsMargins(0, 0, 0, 0)
-        date_row_l.addWidget(self._start_date_check)
-        date_row_l.addWidget(self._start_date_edit)
-        date_row_l.addStretch()
-        f.addRow("Дата начала:", date_row)
+        start_row = QWidget()
+        start_row_l = QHBoxLayout(start_row)
+        start_row_l.setContentsMargins(0, 0, 0, 0)
+        start_row_l.addWidget(self._start_date_check)
+        start_row_l.addWidget(self._start_date_edit)
+        start_row_l.addStretch()
+        f.addRow("Дата начала:", start_row)
+
+        # ── Дата окончания ────────────────────────────────────────────
+        self._end_date_check = QCheckBox("Указать дату окончания")
+        self._end_date_edit = QDateEdit(QDate.currentDate())
+        self._end_date_edit.setCalendarPopup(True)
+        self._end_date_edit.setDisplayFormat("dd.MM.yyyy")
+        self._end_date_edit.setEnabled(False)
+        self._end_date_check.toggled.connect(self._end_date_edit.setEnabled)
+        end_row = QWidget()
+        end_row_l = QHBoxLayout(end_row)
+        end_row_l.setContentsMargins(0, 0, 0, 0)
+        end_row_l.addWidget(self._end_date_check)
+        end_row_l.addWidget(self._end_date_edit)
+        end_row_l.addStretch()
+        f.addRow("Дата окончания:", end_row)
 
         self._planned_surveys_check = QCheckBox("Создать 3 плановых опроса")
         self._planned_surveys_check.setChecked(True)
@@ -94,10 +126,24 @@ class _AddClientDialog(QDialog):
                 qd = self._start_date_edit.date()
                 start_date = date(qd.year(), qd.month(), qd.day())
 
+            end_date = None
+            if self._end_date_check.isChecked():
+                qd = self._end_date_edit.date()
+                end_date = date(qd.year(), qd.month(), qd.day())
+
+            # Validate: end_date must not be before start_date
+            if start_date and end_date and end_date < start_date:
+                QMessageBox.warning(
+                    self, "Ошибка",
+                    "Дата окончания не может быть раньше даты начала."
+                )
+                return
+
             client = Client(
                 child_name=child_name,
                 parent_name=self._parent_name_edit.text().strip() or None,
                 start_date=start_date,
+                end_date=end_date,
                 status=ClientStatus.ACTIVE,
             )
             self._session.add(client)
@@ -152,10 +198,11 @@ class ClientsWidget(QWidget):
         bar.addWidget(self._search_edit, stretch=1)
         root.addLayout(bar)
 
-        # Table
-        self._table = QTableWidget(0, 5)
+        # Table — 7 columns
+        self._table = QTableWidget(0, 7)
         self._table.setHorizontalHeaderLabels(
-            ["ФИО ребёнка", "Родитель", "Дата начала", "Статус", "Опросов"]
+            ["ФИО ребёнка", "Родитель", "Дата начала", "Дата окончания",
+             "Продолжительность", "Статус", "Опросов"]
         )
         hh = self._table.horizontalHeader()
         hh.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
@@ -163,8 +210,11 @@ class ClientsWidget(QWidget):
         hh.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         hh.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         hh.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        hh.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
+        hh.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self._table.setSortingEnabled(True)
         self._table.itemSelectionChanged.connect(self._on_sel)
         self._table.doubleClicked.connect(self._open_detail)
         root.addWidget(self._table)
@@ -187,6 +237,9 @@ class ClientsWidget(QWidget):
 
     # ------------------------------------------------------------------
     def load_data(self) -> None:
+        # Disable sorting while filling to avoid index scrambling
+        self._table.setSortingEnabled(False)
+
         status_filter = self._status_filter.currentData()
         search = self._search_edit.text().strip().lower()
 
@@ -206,18 +259,22 @@ class ClientsWidget(QWidget):
         self._table.setRowCount(len(clients))
         for row, c in enumerate(clients):
             color = _FINISHED_COLOR if c.status == ClientStatus.FINISHED else None
-            dt = c.start_date.strftime("%d.%m.%Y") if c.start_date else "—"
+            start_dt  = c.start_date.strftime("%d.%m.%Y") if c.start_date else "—"
+            end_dt    = c.end_date.strftime("%d.%m.%Y")   if c.end_date   else "—"
+            duration  = c.duration_display or "—"
             survey_count = str(len(c.surveys))
-            for col, val in enumerate([
-                c.child_name,
-                c.parent_name or "—",
-                dt,
-                c.status.value,
-                survey_count,
-            ]):
-                self._table.setItem(row, col, _ro_item(val, color))
+
+            self._table.setItem(row, 0, _ro_item(c.child_name, color))
+            self._table.setItem(row, 1, _ro_item(c.parent_name or "—", color))
+            self._table.setItem(row, 2, _ro_item(start_dt, color))
+            self._table.setItem(row, 3, _ro_item(end_dt, color))
+            self._table.setItem(row, 4, _DurationItem(duration, c.duration_days, color))
+            self._table.setItem(row, 5, _ro_item(c.status.value, color))
+            self._table.setItem(row, 6, _ro_item(survey_count, color))
+
         self._open_btn.setEnabled(False)
         self._del_btn.setEnabled(False)
+        self._table.setSortingEnabled(True)
 
     # ------------------------------------------------------------------
     def _on_sel(self) -> None:
@@ -227,7 +284,18 @@ class ClientsWidget(QWidget):
 
     def _selected_client(self) -> Client | None:
         rows = self._table.selectionModel().selectedRows()
-        return self._clients[rows[0].row()] if rows else None
+        if not rows:
+            return None
+        # After sorting the visible row index ≠ list index; use column 0 text
+        # to match, or better: store client.id in UserRole
+        item = self._table.item(rows[0].row(), 0)
+        if item is None:
+            return None
+        name = item.text()
+        for c in self._clients:
+            if c.child_name == name:
+                return c
+        return None
 
     def _add_client(self) -> None:
         dlg = _AddClientDialog(self._session, parent=self)

@@ -1,4 +1,5 @@
 import enum
+from calendar import monthrange
 from datetime import date
 from typing import List, Optional
 
@@ -83,6 +84,11 @@ class SituationStatus(str, enum.Enum):
     CLOSED      = "Завершена"
 
 
+class FeedbackStatus(str, enum.Enum):
+    SENT     = "Прислали обратную связь"
+    NOT_SENT = "Не прислали обратную связь"
+
+
 # ---------------------------------------------------------------------------
 # Models
 # ---------------------------------------------------------------------------
@@ -141,11 +147,16 @@ class Client(Base):
     id:          Mapped[int]           = mapped_column(Integer, primary_key=True, autoincrement=True)
     child_name:  Mapped[str]           = mapped_column(String(200), nullable=False)
     parent_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
-    start_date:  Mapped[Optional[date]]= mapped_column(Date, nullable=True)
+    start_date:  Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    end_date:    Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     status:      Mapped[ClientStatus]  = mapped_column(
         Enum(ClientStatus, values_callable=lambda e: [x.value for x in e]),
         nullable=False,
         default=ClientStatus.ACTIVE,
+    )
+    feedback_status: Mapped[Optional[FeedbackStatus]] = mapped_column(
+        Enum(FeedbackStatus, values_callable=lambda e: [x.value for x in e]),
+        nullable=True,
     )
 
     # Relationships
@@ -155,6 +166,42 @@ class Client(Base):
     surveys: Mapped[List["Survey"]] = relationship(
         "Survey", back_populates="client", cascade="all, delete-orphan", order_by="Survey.contact_date"
     )
+
+    # ------------------------------------------------------------------
+    # Duration helpers (computed, not stored in DB)
+    # ------------------------------------------------------------------
+
+    @property
+    def duration_display(self) -> str:
+        """Formatted duration 'X мес Y дн'. Empty string if dates missing/invalid."""
+        if not self.start_date or not self.end_date:
+            return ""
+        if self.end_date < self.start_date:
+            return ""
+        y1, m1, d1 = self.start_date.year, self.start_date.month, self.start_date.day
+        y2, m2, d2 = self.end_date.year,   self.end_date.month,   self.end_date.day
+        months = (y2 - y1) * 12 + (m2 - m1)
+        if d2 < d1:
+            months -= 1
+            prev_m = m2 - 1 if m2 > 1 else 12
+            prev_y = y2 if m2 > 1 else y2 - 1
+            prev_last = monthrange(prev_y, prev_m)[1]
+            days = (prev_last - d1) + d2 + 1
+        else:
+            days = d2 - d1
+        parts = []
+        if months:
+            parts.append(f"{months} мес")
+        if days:
+            parts.append(f"{days} дн")
+        return " ".join(parts) or "0 дн"
+
+    @property
+    def duration_days(self) -> int:
+        """Total days between start and end date. -1 if unavailable (for sorting)."""
+        if not self.start_date or not self.end_date or self.end_date < self.start_date:
+            return -1
+        return (self.end_date - self.start_date).days
 
     def __repr__(self) -> str:
         return f"<Client id={self.id} child={self.child_name!r} status={self.status.value}>"

@@ -14,8 +14,8 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from models import Client, ClientStatus, ContactType, Misunderstanding, Satisfaction, \
-    SituationStatus, Survey
+from models import Client, ClientStatus, ContactType, FeedbackStatus, Misunderstanding, \
+    Satisfaction, SituationStatus, Survey
 
 log = logging.getLogger(__name__)
 
@@ -54,6 +54,29 @@ def auto_update_status(survey: Survey) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Feedback status helpers
+# ---------------------------------------------------------------------------
+
+def _auto_update_feedback_status(session: Session, survey: Survey) -> None:
+    """
+    If a satisfaction answer is present, mark the parent client as having
+    sent feedback (FeedbackStatus.SENT), unless already set.
+    Does NOT flush/commit — caller is responsible.
+    """
+    if survey.satisfaction is None:
+        return
+    client = session.get(Client, survey.client_id)
+    if client is None:
+        return
+    if client.feedback_status != FeedbackStatus.SENT:
+        client.feedback_status = FeedbackStatus.SENT
+        log.debug(
+            "Client id=%s feedback_status → SENT (survey id=%s has satisfaction)",
+            client.id, survey.id,
+        )
+
+
+# ---------------------------------------------------------------------------
 # CRUD helpers
 # ---------------------------------------------------------------------------
 
@@ -86,7 +109,8 @@ def create_survey(session: Session, client_id: int, data: dict) -> Survey:
     )
     auto_update_status(survey)
     session.add(survey)
-    session.flush()
+    session.flush()  # flush first so survey.id is available for logging
+    _auto_update_feedback_status(session, survey)
     log.info("Created survey id=%s for client_id=%s type=%s",
              survey.id, client_id, survey.contact_type)
     return survey
@@ -109,6 +133,7 @@ def update_survey(session: Session, survey: Survey, data: dict) -> Survey:
             setattr(survey, field, data[field])
 
     auto_update_status(survey)
+    _auto_update_feedback_status(session, survey)
     session.flush()
     log.info("Updated survey id=%s", survey.id)
     return survey
