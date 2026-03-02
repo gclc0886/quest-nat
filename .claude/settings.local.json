@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(py /c/Users/ArdorW11/.claude/skills/aif-skill-generator/scripts/security-scan.py /c/Users/ArdorW11/Documents/QUEST/.claude/skills/fastapi-templates)",
+      "Bash(py /c/Users/ArdorW11/Documents/QUEST/.claude/skills/aif-skill-generator/scripts/security-scan.py /c/Users/ArdorW11/Documents/QUEST/.claude/skills/fastapi-templates)",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(py /c/Users/ArdorW11/Documents/QUEST/.claude/skills/aif-skill-generator/scripts/security-scan.py /c/Users/ArdorW11/Documents/QUEST/.claude/skills/tailwind-design-system)",
+      "Bash(py /c/Users/ArdorW11/Documents/QUEST/.claude/skills/aif-skill-generator/scripts/security-scan.py /c/Users/ArdorW11/Documents/QUEST/.claude/skills/sqlalchemy-orm)",
+      "Bash(npx skills search pyqt6)",
+      "Bash(py /c/Users/ArdorW11/Documents/QUEST/.claude/skills/aif-skill-generator/scripts/security-scan.py /c/Users/ArdorW11/Documents/QUEST/.claude/skills/pyqt6-ui-development-rules)",
+      "Skill(aif-plan)",
+      "Skill(aif-plan:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "filesystem",
+    "chromeDevtools"
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "version": "2.2.2",
+  "agents": [
+    {
+      "id": "claude",
+      "skillsDir": ".claude/skills",
+      "installedSkills": [
+        "aif",
+        "aif-architecture",
+        "aif-best-practices",
+        "aif-build-automation",
+        "aif-ci",
+        "aif-commit",
+        "aif-dockerize",
+        "aif-docs",
+        "aif-evolve",
+        "aif-fix",
+        "aif-grounded",
+        "aif-implement",
+        "aif-improve",
+        "aif-loop",
+        "aif-plan",
+        "aif-review",
+        "aif-roadmap",
+        "aif-rules",
+        "aif-security-checklist",
+        "aif-skill-generator",
+        "aif-verify",
+        "sqlalchemy-orm",
+        "excel-migration",
+        "openrouter-integration",
+        "pyqt6-ui-development-rules"
+      ],
+      "mcp": {
+        "github": false,
+        "filesystem": true,
+        "postgres": false,
+        "chromeDevtools": true,
+        "playwright": false
+      }
+    }
+  ],
+  "extensions": []
+}
