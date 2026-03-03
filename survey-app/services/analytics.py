@@ -253,6 +253,10 @@ def get_monthly_trend(session: Session,
         q = q.filter(Survey.contact_date <= to_date)
 
     surveys = q.all()
+    log.info("get_monthly_trend: %d surveys matched filter", len(surveys))
+    for s in surveys:
+        log.info("  survey id=%s date=%s satisfaction=%s situation=%s",
+                 s.id, s.contact_date, s.satisfaction, s.situation_status)
 
     buckets: dict[tuple[int, int], dict] = {}
     for s in surveys:

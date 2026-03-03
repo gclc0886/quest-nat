@@ -331,6 +331,10 @@ class AnalyticsWidget(QWidget):
         # Prefer satisfaction trend (richer); fall back to raw survey count
         use_satisfaction = bool(s and s.monthly_trend)
         data_pts = (s.monthly_trend if use_satisfaction else (s.monthly_count if s else []))
+        log.info("_refresh_trend: use_satisfaction=%s, %d data points", use_satisfaction, len(data_pts))
+        for pt in data_pts:
+            log.info("  point: %04d-%02d total=%d satisfied=%d pct=%.1f",
+                     pt.year, pt.month, pt.total, pt.satisfied, pt.satisfaction_pct)
 
         if not data_pts:
             chart.setTitle("Динамика по месяцам — нет данных")

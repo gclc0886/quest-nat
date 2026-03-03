@@ -9,9 +9,15 @@ from database import SessionLocal, init_db
 from services.config_store import load_config
 from ui.main_window import MainWindow
 
+_LOG_FILE = Path(__file__).parent / "data" / "app.log"
+_LOG_FILE.parent.mkdir(exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler(_LOG_FILE, encoding="utf-8"),
+    ],
 )
 log = logging.getLogger(__name__)
 
