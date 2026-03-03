@@ -10,7 +10,7 @@ from PyQt6.QtCharts import (
     QPieSeries,
     QValueAxis,
 )
-from PyQt6.QtCore import QDate, QDateTime, Qt
+from PyQt6.QtCore import QDate, QDateTime, QTime, Qt
 from PyQt6.QtGui import QBrush, QColor, QPainter
 from PyQt6.QtWidgets import (
     QDateEdit, QFrame, QGridLayout, QHBoxLayout,
@@ -336,7 +336,7 @@ class AnalyticsWidget(QWidget):
         series.setColor(QColor(_GREEN))
 
         for pt in data_pts:
-            dt_ms = QDateTime(QDate(pt.year, pt.month, 1)).toMSecsSinceEpoch()
+            dt_ms = QDateTime(QDate(pt.year, pt.month, 1), QTime(0, 0)).toMSecsSinceEpoch()
             y_val = pt.satisfaction_pct if use_satisfaction else float(pt.total)
             series.append(dt_ms, y_val)
 
