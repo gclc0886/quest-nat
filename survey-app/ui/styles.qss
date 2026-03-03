@@ -415,6 +415,44 @@ QCalendarWidget QSpinBox {
     padding: 2px 4px;
 }
 
+QCalendarWidget QSpinBox::up-button {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 16px;
+    border-left: 1px solid #ced4da;
+    border-bottom: 1px solid #ced4da;
+    background: #f0f2f5;
+}
+
+QCalendarWidget QSpinBox::up-button:hover {
+    background: #e2e6ea;
+}
+
+QCalendarWidget QSpinBox::up-arrow {
+    image: url(arrow-up.svg);
+    width: 8px;
+    height: 5px;
+}
+
+QCalendarWidget QSpinBox::down-button {
+    subcontrol-origin: border;
+    subcontrol-position: bottom right;
+    width: 16px;
+    border-left: 1px solid #ced4da;
+    border-top: 1px solid #ced4da;
+    background: #f0f2f5;
+}
+
+QCalendarWidget QSpinBox::down-button:hover {
+    background: #e2e6ea;
+}
+
+QCalendarWidget QSpinBox::down-arrow {
+    image: url(arrow-down.svg);
+    width: 8px;
+    height: 5px;
+}
+
 QCalendarWidget QAbstractItemView {
     background: #ffffff;
     color: #212529;
