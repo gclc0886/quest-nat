@@ -47,6 +47,7 @@ class EmployeePosition(str, enum.Enum):
     PSYCHOLOG  = "Психолог"
     NEUROPSY   = "Нейропсихолог"
     SI         = "СИ"
+    ABA        = "ABA"
     ADMIN      = "Администратор"
 
 
