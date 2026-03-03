@@ -106,18 +106,19 @@ def get_satisfaction_stats(session: Session,
                            to_date: Optional[date] = None) -> SatisfactionStats:
     """Satisfaction breakdown for surveys in the optional date range.
 
-    Denominator = all conducted (contact_date set) non-resolved surveys.
+    Denominator = ответившие = surveys where satisfaction is set
+                  OR situation_status == RESOLVED (улажены тоже ответили).
     Numerator   = surveys explicitly marked SATISFIED.
-    Surveys without a satisfaction answer count against the percentage
-    (they are surveyed but not satisfied).
-    Surveys with situation_status == RESOLVED are excluded entirely.
+
+    Логика: % довольных среди ответивших (без улаженных как довольных).
+    Пример: 7 довольны + 2 улажены = 9 ответили → 7/9 = 78%.
     """
     q = (
         session.query(Survey)
         .filter(Survey.contact_date.isnot(None))
         .filter(
-            (Survey.situation_status.is_(None)) |
-            (Survey.situation_status != SituationStatus.RESOLVED)
+            Survey.satisfaction.isnot(None) |
+            (Survey.situation_status == SituationStatus.RESOLVED)
         )
     )
     if from_date:
@@ -234,17 +235,16 @@ def get_monthly_trend(session: Session,
                       to_date: Optional[date] = None) -> list[MonthlyPoint]:
     """
     Satisfaction trend grouped by year+month.
-    Only surveys with contact_date and satisfaction filled are included.
+    Denominator per month = ответившие = satisfaction IS NOT NULL OR resolved.
+    Numerator   per month = satisfaction == SATISFIED.
     Returns list sorted by (year, month) ascending.
     """
     q = (
         session.query(Survey)
         .filter(Survey.contact_date.isnot(None))
-        # Denominator: all conducted non-resolved surveys (satisfaction may be NULL).
-        # Surveys without an explicit SATISFIED answer count against the %.
         .filter(
-            (Survey.situation_status.is_(None)) |
-            (Survey.situation_status != SituationStatus.RESOLVED)
+            Survey.satisfaction.isnot(None) |
+            (Survey.situation_status == SituationStatus.RESOLVED)
         )
     )
     if from_date:
