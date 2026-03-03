@@ -84,8 +84,23 @@ QDateEdit:focus {
 }
 
 QDateEdit::drop-down {
-    border: none;
-    width: 22px;
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 24px;
+    border-left: 1px solid #3d4147;
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+    background: #3d4147;
+}
+
+QDateEdit::drop-down:hover {
+    background: #495057;
+}
+
+QDateEdit::down-arrow {
+    image: url(arrow-down-dark.svg);
+    width: 10px;
+    height: 6px;
 }
 
 QTextBrowser {
