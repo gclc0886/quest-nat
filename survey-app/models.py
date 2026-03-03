@@ -158,6 +158,7 @@ class Client(Base):
         Enum(FeedbackStatus, values_callable=lambda e: [x.value for x in e]),
         nullable=True,
     )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships
     specialists: Mapped[List[Employee]] = relationship(

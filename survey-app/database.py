@@ -43,6 +43,9 @@ def _apply_migrations() -> None:
                         "ALTER TABLE clients ADD COLUMN feedback_status VARCHAR(50)"
                     ))
                     log.info("Migration: added clients.feedback_status")
+                if "notes" not in cols:
+                    conn.execute(text("ALTER TABLE clients ADD COLUMN notes TEXT"))
+                    log.info("Migration: added clients.notes")
     except Exception as exc:
         log.warning("Migration step failed (non-fatal): %s", exc)
 

@@ -198,11 +198,11 @@ class ClientsWidget(QWidget):
         bar.addWidget(self._search_edit, stretch=1)
         root.addLayout(bar)
 
-        # Table — 7 columns
-        self._table = QTableWidget(0, 7)
+        # Table — 8 columns
+        self._table = QTableWidget(0, 8)
         self._table.setHorizontalHeaderLabels(
             ["ФИО ребёнка", "Родитель", "Дата начала", "Дата окончания",
-             "Продолжительность", "Статус", "Опросов"]
+             "Продолжительность", "Статус", "Опросов", "Примечания"]
         )
         hh = self._table.horizontalHeader()
         hh.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
@@ -212,6 +212,7 @@ class ClientsWidget(QWidget):
         hh.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
         hh.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
         hh.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
+        hh.setSectionResizeMode(7, QHeaderView.ResizeMode.Stretch)
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._table.setSortingEnabled(True)
@@ -271,6 +272,7 @@ class ClientsWidget(QWidget):
             self._table.setItem(row, 4, _DurationItem(duration, c.duration_days, color))
             self._table.setItem(row, 5, _ro_item(c.status.value, color))
             self._table.setItem(row, 6, _ro_item(survey_count, color))
+            self._table.setItem(row, 7, _ro_item(c.notes or "", color))
 
         self._open_btn.setEnabled(False)
         self._del_btn.setEnabled(False)

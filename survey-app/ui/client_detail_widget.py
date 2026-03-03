@@ -7,8 +7,8 @@ from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QDateEdit, QDialog, QFormLayout,
     QGroupBox, QGridLayout, QHBoxLayout, QHeaderView, QLabel,
-    QLineEdit, QMessageBox, QPushButton, QScrollArea, QTableWidget,
-    QTableWidgetItem, QVBoxLayout, QWidget,
+    QLineEdit, QMessageBox, QPlainTextEdit, QPushButton, QScrollArea,
+    QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 from sqlalchemy import nullslast
 from sqlalchemy.orm import Session
@@ -140,6 +140,12 @@ class ClientDetailDialog(QDialog):
             self._feedback_cb.addItem(fs.value, fs)
         info_f.addRow("Статус обратной связи:", self._feedback_cb)
 
+        # ── Примечания ────────────────────────────────────────────────
+        self._notes_edit = QPlainTextEdit()
+        self._notes_edit.setPlaceholderText("Дополнительные заметки…")
+        self._notes_edit.setFixedHeight(80)
+        info_f.addRow("Примечания:", self._notes_edit)
+
         save_btn = QPushButton("Сохранить изменения")
         save_btn.clicked.connect(self._save_client_info)
         info_f.addRow("", save_btn)
@@ -214,6 +220,7 @@ class ClientDetailDialog(QDialog):
             )
         _set_combo(self._status_cb, c.status)
         _set_combo(self._feedback_cb, c.feedback_status)
+        self._notes_edit.setPlainText(c.notes or "")
         self._update_duration_label()
         self._load_specialists()
         self._load_surveys()
@@ -362,6 +369,7 @@ class ClientDetailDialog(QDialog):
             self._client.end_date     = end_date
             self._client.status       = self._status_cb.currentData()
             self._client.feedback_status = self._feedback_cb.currentData()
+            self._client.notes        = self._notes_edit.toPlainText().strip() or None
             self._session.commit()
             log.info("Client id=%s info saved", self._client.id)
             self.client_updated.emit()
