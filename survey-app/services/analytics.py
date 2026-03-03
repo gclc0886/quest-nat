@@ -447,7 +447,14 @@ def get_analytics_summary(session: Session,
     active_clients = session.query(Client).filter(
         Client.status == ClientStatus.ACTIVE
     ).count()
-    total_surveys = session.query(Survey).count()
+
+    # total_surveys respects the selected period (filter by contact_date)
+    q_total = session.query(Survey)
+    if from_date:
+        q_total = q_total.filter(Survey.contact_date >= from_date)
+    if to_date:
+        q_total = q_total.filter(Survey.contact_date <= to_date)
+    total_surveys = q_total.count()
 
     summary = AnalyticsSummary(
         total_clients=total_clients,
