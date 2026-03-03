@@ -86,19 +86,19 @@ QDateEdit:focus {
 QDateEdit::drop-down {
     subcontrol-origin: padding;
     subcontrol-position: top right;
-    width: 24px;
+    width: 26px;
     border-left: 1px solid #ced4da;
     border-top-right-radius: 3px;
     border-bottom-right-radius: 3px;
-    background: #f0f2f5;
+    background: #0d6efd;
 }
 
 QDateEdit::drop-down:hover {
-    background: #e2e6ea;
+    background: #0b5ed7;
 }
 
 QDateEdit::down-arrow {
-    image: url(arrow-down.svg);
+    image: url(arrow-down-white.svg);
     width: 10px;
     height: 6px;
 }
