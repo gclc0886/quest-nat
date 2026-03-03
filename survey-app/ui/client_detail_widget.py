@@ -14,6 +14,7 @@ from sqlalchemy import nullslast
 from sqlalchemy.orm import Session
 
 from models import Client, ClientStatus, Employee, FeedbackStatus, Satisfaction, SituationStatus, Survey
+from ui.table_utils import setup_resizable_columns
 
 log = logging.getLogger(__name__)
 
@@ -180,12 +181,10 @@ class ClientDetailDialog(QDialog):
         self._survey_table.setHorizontalHeaderLabels(
             ["Тип", "Дата", "Удовлетворённость", "Недопон.", "Статус ситуации"]
         )
-        hh = self._survey_table.horizontalHeader()
-        hh.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+        setup_resizable_columns(
+            self._survey_table, "client_surveys",
+            [110, 90, 130, 80, 180],
+        )
         self._survey_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._survey_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._survey_table.setMinimumHeight(200)

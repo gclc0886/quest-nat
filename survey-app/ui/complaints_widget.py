@@ -21,6 +21,7 @@ from models import (
     Client, ClientStatus, Misunderstanding, Satisfaction,
     SituationStatus, Survey,
 )
+from ui.table_utils import setup_resizable_columns
 
 log = logging.getLogger(__name__)
 
@@ -235,14 +236,10 @@ class ComplaintsWidget(QWidget):
             "Клиент", "Тип жалобы", "Детали", "Удовлетв.",
             "Статус", "Контактов", "Дата",
         ])
-        hh = self._table.horizontalHeader()
-        hh.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        hh.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-        hh.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
+        setup_resizable_columns(
+            self._table, "complaints",
+            [170, 120, 200, 90, 110, 80, 90],
+        )
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._table.setAlternatingRowColors(True)

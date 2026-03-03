@@ -13,6 +13,7 @@ from sqlalchemy import nullslast
 from sqlalchemy.orm import Session
 
 from models import Client, ContactType, Misunderstanding, Satisfaction, SituationStatus, Survey
+from ui.table_utils import setup_resizable_columns
 
 log = logging.getLogger(__name__)
 
@@ -108,13 +109,10 @@ class SurveysWidget(QWidget):
         self._table.setHorizontalHeaderLabels(
             ["Клиент", "Тип", "Дата", "Удовлетворённость", "Недопон.", "Статус ситуации"]
         )
-        hh = self._table.horizontalHeader()
-        hh.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        hh.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
+        setup_resizable_columns(
+            self._table, "surveys",
+            [210, 110, 90, 130, 80, 160],
+        )
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._table.itemSelectionChanged.connect(self._on_sel)

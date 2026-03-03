@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from models import Client, ClientStatus
 from services.survey_logic import create_planned_surveys
+from ui.table_utils import setup_resizable_columns
 
 log = logging.getLogger(__name__)
 
@@ -204,15 +205,10 @@ class ClientsWidget(QWidget):
             ["ФИО ребёнка", "Родитель", "Дата начала", "Дата окончания",
              "Продолжительность", "Статус", "Опросов", "Примечания"]
         )
-        hh = self._table.horizontalHeader()
-        hh.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        hh.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(7, QHeaderView.ResizeMode.Stretch)
+        setup_resizable_columns(
+            self._table, "clients",
+            [210, 170, 100, 110, 130, 90, 70, 200],
+        )
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._table.setSortingEnabled(True)

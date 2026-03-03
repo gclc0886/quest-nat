@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
 from sqlalchemy.orm import Session
 
 from models import Employee, EmployeePosition, EmployeeStatus
+from ui.table_utils import setup_resizable_columns
 
 log = logging.getLogger(__name__)
 
@@ -176,11 +177,10 @@ class EmployeesWidget(QWidget):
 
         self._table = QTableWidget(0, 4)
         self._table.setHorizontalHeaderLabels(["ID", "ФИО", "Должности", "Статус"])
-        hh = self._table.horizontalHeader()
-        hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        hh.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        self._table.setColumnWidth(0, 40)
+        setup_resizable_columns(
+            self._table, "employees",
+            [40, 220, 200, 100],
+        )
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._table.itemSelectionChanged.connect(self._on_sel)
