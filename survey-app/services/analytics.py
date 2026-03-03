@@ -68,11 +68,11 @@ class MonthlyPoint:
 @dataclass
 class SurveyFeedbackStats:
     """Metrics for the 'Аналитика по опросам' block."""
-    surveys_sent: int       # distinct clients with ≥1 survey (contact_date) in period
-    feedback_sent: int      # of those clients: feedback_status == SENT
-    feedback_not_sent: int  # of those clients: feedback_status == NOT_SENT or NULL
+    surveys_sent: int       # survey rows with contact_date in period (= Опросы tab count)
+    feedback_sent: int      # survey rows in period where client.feedback_status == SENT
+    feedback_not_sent: int  # survey rows in period where client.feedback_status == NOT_SENT or NULL
     misunderstanding: int   # distinct clients with ≥1 survey (in period) misunderstanding==YES
-    resolved: int           # surveys with situation_status == RESOLVED in period
+    resolved: int           # survey rows with situation_status == RESOLVED in period
 
 
 @dataclass
@@ -374,39 +374,40 @@ def get_survey_feedback_stats(session: Session,
     """
     Compute the five 'Аналитика по опросам' KPIs.
 
-    surveys_sent / feedback_sent / feedback_not_sent
-        — base: Client.start_date in period
-          (enrollment date = the moment the survey is "sent" to this client)
-          feedback_not_sent includes NULL feedback_status (= not yet recorded)
-          so that feedback_sent + feedback_not_sent == surveys_sent always.
+    All five metrics use Survey.contact_date for period filtering —
+    the same logic as the «Опросы» tab, which also counts survey rows
+    by contact_date.
 
-    misunderstanding / resolved
-        — base: Survey.contact_date in period
+    surveys_sent      — total survey rows with contact_date in period
+    feedback_sent     — survey rows in period whose client.feedback_status == SENT
+    feedback_not_sent — survey rows in period whose client.feedback_status == NOT_SENT or NULL
+                        (feedback_sent + feedback_not_sent == surveys_sent always)
+    misunderstanding  — distinct clients with ≥1 survey (in period) where misunderstanding==YES
+    resolved          — survey rows with situation_status == RESOLVED in period
     """
-    # ── Client-level stats (base = Client.start_date in period) ──────────────
-    q_clients = session.query(Client).filter(Client.start_date.isnot(None))
-    if from_date:
-        q_clients = q_clients.filter(Client.start_date >= from_date)
-    if to_date:
-        q_clients = q_clients.filter(Client.start_date <= to_date)
-
-    surveys_sent  = q_clients.count()
-    feedback_sent = q_clients.filter(
-        Client.feedback_status == FeedbackStatus.SENT
-    ).count()
-    # NULL feedback_status = not yet recorded → treated as "not sent"
-    # This guarantees: feedback_sent + feedback_not_sent == surveys_sent
-    feedback_not_sent = q_clients.filter(
-        (Client.feedback_status == FeedbackStatus.NOT_SENT) |
-        Client.feedback_status.is_(None)
-    ).count()
-
-    # ── Survey-level stats (base = Survey.contact_date in period) ─────────────
+    # Base: survey rows with contact_date in period (same filter as Surveys tab)
     q_surveys = session.query(Survey).filter(Survey.contact_date.isnot(None))
     if from_date:
         q_surveys = q_surveys.filter(Survey.contact_date >= from_date)
     if to_date:
         q_surveys = q_surveys.filter(Survey.contact_date <= to_date)
+
+    # Total survey rows in period
+    surveys_sent = q_surveys.count()
+
+    # Join with Client to split by feedback_status
+    q_with_client = q_surveys.join(Client, Survey.client_id == Client.id)
+
+    feedback_sent = q_with_client.filter(
+        Client.feedback_status == FeedbackStatus.SENT
+    ).count()
+
+    # NULL feedback_status = not yet recorded → treated as "not sent"
+    # This guarantees: feedback_sent + feedback_not_sent == surveys_sent
+    feedback_not_sent = q_with_client.filter(
+        (Client.feedback_status == FeedbackStatus.NOT_SENT) |
+        Client.feedback_status.is_(None)
+    ).count()
 
     # Distinct clients with ≥1 survey in period where misunderstanding == YES
     misunderstanding = (
@@ -417,7 +418,7 @@ def get_survey_feedback_stats(session: Session,
         .count()
     )
 
-    # Count of surveys with RESOLVED status in period
+    # Survey rows with RESOLVED status in period
     resolved = q_surveys.filter(
         Survey.situation_status == SituationStatus.RESOLVED
     ).count()
