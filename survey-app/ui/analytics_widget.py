@@ -78,8 +78,9 @@ class _KpiCard(QFrame):
 
     def set_value(self, text: str, color: str = "#212529") -> None:
         self._value_lbl.setText(text)
+        font_size = 20 if len(text) > 8 else 26
         self._value_lbl.setStyleSheet(
-            f"font-size: 26px; font-weight: bold; color: {color};"
+            f"font-size: {font_size}px; font-weight: bold; color: {color};"
         )
 
 
@@ -297,8 +298,13 @@ class AnalyticsWidget(QWidget):
         fb = s.survey_feedback
         self._card_sent.set_value(str(fb.surveys_sent), _BLUE)
         self._card_fb_yes.set_value(str(fb.feedback_sent), _GREEN)
+        if fb.surveys_sent > 0:
+            no_pct = fb.feedback_not_sent / fb.surveys_sent * 100
+            fb_no_text = f"{fb.feedback_not_sent} ({no_pct:.0f}%)"
+        else:
+            fb_no_text = str(fb.feedback_not_sent)
         self._card_fb_no.set_value(
-            str(fb.feedback_not_sent),
+            fb_no_text,
             _YELLOW if fb.feedback_not_sent > 0 else _GREEN,
         )
         self._card_mis.set_value(
