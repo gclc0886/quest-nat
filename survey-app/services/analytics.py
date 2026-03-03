@@ -127,7 +127,12 @@ def get_satisfaction_stats(session: Session,
         q = q.filter(Survey.contact_date <= to_date)
 
     total = q.count()
-    satisfied = q.filter(Survey.satisfaction == Satisfaction.SATISFIED).count()
+    # Satisfied = SATISFIED but NOT resolved (улаженные не считаются довольными)
+    satisfied = q.filter(
+        Survey.satisfaction == Satisfaction.SATISFIED,
+        (Survey.situation_status.is_(None)) |
+        (Survey.situation_status != SituationStatus.RESOLVED),
+    ).count()
     unsatisfied = q.filter(Survey.satisfaction == Satisfaction.UNSATISFIED).count()
     pct = round(satisfied / total * 100, 1) if total > 0 else 0.0
 
@@ -264,7 +269,9 @@ def get_monthly_trend(session: Session,
         if key not in buckets:
             buckets[key] = {"total": 0, "satisfied": 0}
         buckets[key]["total"] += 1
-        if s.satisfaction == Satisfaction.SATISFIED:
+        # Satisfied = SATISFIED but NOT resolved (улаженные не считаются довольными)
+        if (s.satisfaction == Satisfaction.SATISFIED
+                and s.situation_status != SituationStatus.RESOLVED):
             buckets[key]["satisfied"] += 1
 
     result = []
