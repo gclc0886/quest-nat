@@ -106,12 +106,15 @@ def get_satisfaction_stats(session: Session,
                            to_date: Optional[date] = None) -> SatisfactionStats:
     """Satisfaction breakdown for surveys in the optional date range.
 
-    Surveys with situation_status == RESOLVED are excluded from the
-    denominator and satisfied count (улаженные не учитываются).
+    Denominator = all conducted (contact_date set) non-resolved surveys.
+    Numerator   = surveys explicitly marked SATISFIED.
+    Surveys without a satisfaction answer count against the percentage
+    (they are surveyed but not satisfied).
+    Surveys with situation_status == RESOLVED are excluded entirely.
     """
     q = (
         session.query(Survey)
-        .filter(Survey.satisfaction.isnot(None))
+        .filter(Survey.contact_date.isnot(None))
         .filter(
             (Survey.situation_status.is_(None)) |
             (Survey.situation_status != SituationStatus.RESOLVED)
@@ -237,7 +240,8 @@ def get_monthly_trend(session: Session,
     q = (
         session.query(Survey)
         .filter(Survey.contact_date.isnot(None))
-        .filter(Survey.satisfaction.isnot(None))
+        # Denominator: all conducted non-resolved surveys (satisfaction may be NULL).
+        # Surveys without an explicit SATISFIED answer count against the %.
         .filter(
             (Survey.situation_status.is_(None)) |
             (Survey.situation_status != SituationStatus.RESOLVED)
@@ -250,8 +254,6 @@ def get_monthly_trend(session: Session,
 
     surveys = q.all()
 
-    # Aggregate in Python (portable across SQLite / other DBs)
-    # Улаженные (RESOLVED) уже отфильтрованы выше.
     buckets: dict[tuple[int, int], dict] = {}
     for s in surveys:
         key = (s.contact_date.year, s.contact_date.month)
