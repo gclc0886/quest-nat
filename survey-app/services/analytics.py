@@ -69,8 +69,8 @@ class MonthlyPoint:
 class SurveyFeedbackStats:
     """Metrics for the 'Аналитика по опросам' block."""
     surveys_sent: int       # survey rows with contact_date in period (= Опросы tab count)
-    feedback_sent: int      # survey rows in period where client.feedback_status == SENT
-    feedback_not_sent: int  # survey rows in period where client.feedback_status == NOT_SENT or NULL
+    feedback_sent: int      # survey rows in period where satisfaction == SATISFIED
+    feedback_not_sent: int  # surveys_sent - feedback_sent
     misunderstanding: int   # distinct clients with ≥1 survey (in period) misunderstanding==YES
     resolved: int           # survey rows with situation_status == RESOLVED in period
 
@@ -379,8 +379,8 @@ def get_survey_feedback_stats(session: Session,
     by contact_date.
 
     surveys_sent      — total survey rows with contact_date in period
-    feedback_sent     — survey rows in period whose client.feedback_status == SENT
-    feedback_not_sent — survey rows in period whose client.feedback_status == NOT_SENT or NULL
+    feedback_sent     — survey rows in period where satisfaction == SATISFIED («Дали обратную связь»)
+    feedback_not_sent — surveys_sent - feedback_sent  («Не дали обратную связь»)
                         (feedback_sent + feedback_not_sent == surveys_sent always)
     misunderstanding  — distinct clients with ≥1 survey (in period) where misunderstanding==YES
     resolved          — survey rows with situation_status == RESOLVED in period
@@ -395,19 +395,15 @@ def get_survey_feedback_stats(session: Session,
     # Total survey rows in period
     surveys_sent = q_surveys.count()
 
-    # Join with Client to split by feedback_status
-    q_with_client = q_surveys.join(Client, Survey.client_id == Client.id)
-
-    feedback_sent = q_with_client.filter(
-        Client.feedback_status == FeedbackStatus.SENT
+    # "Дали обратную связь" = surveys where satisfaction == SATISFIED
+    # (same filter visible in the Опросы tab → Удовлетворённость column)
+    feedback_sent = q_surveys.filter(
+        Survey.satisfaction == Satisfaction.SATISFIED
     ).count()
 
-    # NULL feedback_status = not yet recorded → treated as "not sent"
+    # "Не дали обратную связь" = all other surveys in period
     # This guarantees: feedback_sent + feedback_not_sent == surveys_sent
-    feedback_not_sent = q_with_client.filter(
-        (Client.feedback_status == FeedbackStatus.NOT_SENT) |
-        Client.feedback_status.is_(None)
-    ).count()
+    feedback_not_sent = surveys_sent - feedback_sent
 
     # Distinct clients with ≥1 survey in period where misunderstanding == YES
     misunderstanding = (
