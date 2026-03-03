@@ -1,18 +1,18 @@
 """Analytics dashboard widget — KPI cards + three PyQtChart charts."""
 import logging
-from calendar import monthrange
 from datetime import date
 
 from PyQt6.QtCharts import (
     QBarCategoryAxis,
+    QBarSeries, QBarSet,
     QChart, QChartView,
-    QLineSeries, QPieSeries,
+    QPieSeries,
     QValueAxis,
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QDate, Qt
 from PyQt6.QtGui import QBrush, QColor, QPainter
 from PyQt6.QtWidgets import (
-    QComboBox, QFrame, QGridLayout, QHBoxLayout,
+    QDateEdit, QFrame, QGridLayout, QHBoxLayout,
     QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
 )
 from sqlalchemy.orm import Session
@@ -126,12 +126,29 @@ class AnalyticsWidget(QWidget):
         # ── Top bar: period selector + refresh ────────────────────────
         bar = QHBoxLayout()
         bar.addWidget(QLabel("Период:"))
-        self._period_cb = QComboBox()
-        self._period_cb.addItem("Весь период",    "all")
-        self._period_cb.addItem("Этот год",        "year")
-        self._period_cb.addItem("Этот квартал",    "quarter")
-        self._period_cb.addItem("Этот месяц",      "month")
-        bar.addWidget(self._period_cb)
+
+        self._all_btn = QPushButton("Весь период")
+        self._all_btn.setCheckable(True)
+        self._all_btn.setChecked(True)
+        self._all_btn.clicked.connect(self._on_all_periods_clicked)
+        bar.addWidget(self._all_btn)
+
+        bar.addWidget(QLabel("  с"))
+        self._from_date = QDateEdit(QDate.currentDate().addYears(-1))
+        self._from_date.setCalendarPopup(True)
+        self._from_date.setDisplayFormat("dd.MM.yyyy")
+        self._from_date.setEnabled(False)
+        self._from_date.dateChanged.connect(self._on_custom_date_changed)
+        bar.addWidget(self._from_date)
+
+        bar.addWidget(QLabel("по"))
+        self._to_date = QDateEdit(QDate.currentDate())
+        self._to_date.setCalendarPopup(True)
+        self._to_date.setDisplayFormat("dd.MM.yyyy")
+        self._to_date.setEnabled(False)
+        self._to_date.dateChanged.connect(self._on_custom_date_changed)
+        bar.addWidget(self._to_date)
+
         refresh_btn = QPushButton("Обновить")
         refresh_btn.clicked.connect(self.load_data)
         bar.addWidget(refresh_btn)
@@ -207,10 +224,12 @@ class AnalyticsWidget(QWidget):
 
     def _reapply_series_colors(self) -> None:
         """Re-stamp custom series colours after a theme change overwrites them."""
-        # Trend: green line
+        # Trend: green bars
         trend_chart = self._trend_view.chart()
         if trend_chart and trend_chart.series():
-            trend_chart.series()[0].setColor(QColor(_GREEN))
+            bar_series = trend_chart.series()[0]
+            if isinstance(bar_series, QBarSeries) and bar_series.barSets():
+                bar_series.barSets()[0].setColor(QColor(_GREEN))
         # Pie: use whichever colour list was active when chart was last built
         pie_chart = self._pie_view.chart()
         if pie_chart and pie_chart.series():
@@ -219,20 +238,28 @@ class AnalyticsWidget(QWidget):
                 if i < len(self._pie_colors):
                     sl.setBrush(self._pie_colors[i])
 
+    def _on_all_periods_clicked(self) -> None:
+        is_all = self._all_btn.isChecked()
+        self._from_date.setEnabled(not is_all)
+        self._to_date.setEnabled(not is_all)
+        self.load_data()
+
+    def _on_custom_date_changed(self) -> None:
+        """Switch off 'Весь период' when user edits date pickers."""
+        self._all_btn.setChecked(False)
+        self._from_date.setEnabled(True)
+        self._to_date.setEnabled(True)
+        self.load_data()
+
     def _date_range(self) -> tuple[date | None, date | None]:
-        key = self._period_cb.currentData()
-        today = date.today()
-        if key == "month":
-            first = today.replace(day=1)
-            last_day = monthrange(today.year, today.month)[1]
-            return first, today.replace(day=last_day)
-        if key == "quarter":
-            q_start_month = ((today.month - 1) // 3) * 3 + 1
-            first = today.replace(month=q_start_month, day=1)
-            return first, today
-        if key == "year":
-            return today.replace(month=1, day=1), today
-        return None, None  # "all"
+        if self._all_btn.isChecked():
+            return None, None
+        qf = self._from_date.date()
+        qt = self._to_date.date()
+        return (
+            date(qf.year(), qf.month(), qf.day()),
+            date(qt.year(), qt.month(), qt.day()),
+        )
 
     # ------------------------------------------------------------------
     # KPI cards
@@ -304,17 +331,20 @@ class AnalyticsWidget(QWidget):
             else "Количество контактов по месяцам"
         )
 
-        series = QLineSeries()
-        series.setColor(QColor(_GREEN))
+        bar_set = QBarSet("")
+        bar_set.setColor(QColor(_GREEN))
 
-        axis_x = QBarCategoryAxis()
         categories = []
         for pt in data_pts:
-            label = f"{pt.month:02d}.{pt.year}"
-            categories.append(label)
+            categories.append(f"{pt.month:02d}.{pt.year}")
             y_val = pt.satisfaction_pct if use_satisfaction else float(pt.total)
-            series.append(len(categories) - 1, y_val)
+            bar_set.append(y_val)
 
+        series = QBarSeries()
+        series.append(bar_set)
+        series.setBarWidth(0.6)
+
+        axis_x = QBarCategoryAxis()
         axis_x.append(categories)
 
         axis_y = QValueAxis()
