@@ -4,12 +4,13 @@ from datetime import date
 
 from PyQt6.QtCharts import (
     QBarCategoryAxis,
-    QBarSeries, QBarSet,
     QChart, QChartView,
+    QDateTimeAxis,
+    QLineSeries,
     QPieSeries,
     QValueAxis,
 )
-from PyQt6.QtCore import QDate, Qt
+from PyQt6.QtCore import QDate, QDateTime, Qt
 from PyQt6.QtGui import QBrush, QColor, QPainter
 from PyQt6.QtWidgets import (
     QDateEdit, QFrame, QGridLayout, QHBoxLayout,
@@ -224,12 +225,12 @@ class AnalyticsWidget(QWidget):
 
     def _reapply_series_colors(self) -> None:
         """Re-stamp custom series colours after a theme change overwrites them."""
-        # Trend: green bars
+        # Trend: green line
         trend_chart = self._trend_view.chart()
         if trend_chart and trend_chart.series():
-            bar_series = trend_chart.series()[0]
-            if isinstance(bar_series, QBarSeries) and bar_series.barSets():
-                bar_series.barSets()[0].setColor(QColor(_GREEN))
+            line = trend_chart.series()[0]
+            if isinstance(line, QLineSeries):
+                line.setColor(QColor(_GREEN))
         # Pie: use whichever colour list was active when chart was last built
         pie_chart = self._pie_view.chart()
         if pie_chart and pie_chart.series():
@@ -331,21 +332,18 @@ class AnalyticsWidget(QWidget):
             else "Количество контактов по месяцам"
         )
 
-        bar_set = QBarSet("")
-        bar_set.setColor(QColor(_GREEN))
+        series = QLineSeries()
+        series.setColor(QColor(_GREEN))
 
-        categories = []
         for pt in data_pts:
-            categories.append(f"{pt.month:02d}.{pt.year}")
+            dt_ms = QDateTime(QDate(pt.year, pt.month, 1)).toMSecsSinceEpoch()
             y_val = pt.satisfaction_pct if use_satisfaction else float(pt.total)
-            bar_set.append(y_val)
+            series.append(dt_ms, y_val)
 
-        series = QBarSeries()
-        series.append(bar_set)
-        series.setBarWidth(0.6)
-
-        axis_x = QBarCategoryAxis()
-        axis_x.append(categories)
+        # X axis — datetime, one tick per data point (max 12)
+        axis_x = QDateTimeAxis()
+        axis_x.setFormat("MM.yyyy")
+        axis_x.setTickCount(min(len(data_pts), 12))
 
         axis_y = QValueAxis()
         if use_satisfaction:
