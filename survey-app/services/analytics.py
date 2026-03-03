@@ -374,33 +374,37 @@ def get_survey_feedback_stats(session: Session,
     """
     Compute the five 'Аналитика по опросам' KPIs.
 
-    surveys_sent    — clients with start_date filled (опрос направлен)
-    feedback_sent   — clients where feedback_status == SENT
-    feedback_not_sent — clients where feedback_status == NOT_SENT
-    misunderstanding — distinct clients who have ≥1 survey with misunderstanding==YES
-    resolved        — survey records with situation_status == RESOLVED (date-filtered)
+    surveys_sent    — clients with start_date in period (опрос направлен)
+    feedback_sent   — clients where feedback_status == SENT, start_date in period
+    feedback_not_sent — clients where feedback_status == NOT_SENT, start_date in period
+    misunderstanding — distinct clients with ≥1 survey (contact_date in period) misunderstanding==YES
+    resolved        — surveys with situation_status == RESOLVED, contact_date in period
     """
-    surveys_sent = session.query(Client).filter(
-        Client.start_date.isnot(None)
-    ).count()
+    # Client-level stats: filter by Client.start_date within the period
+    q_clients = session.query(Client).filter(Client.start_date.isnot(None))
+    if from_date:
+        q_clients = q_clients.filter(Client.start_date >= from_date)
+    if to_date:
+        q_clients = q_clients.filter(Client.start_date <= to_date)
 
-    feedback_sent = session.query(Client).filter(
-        Client.feedback_status == FeedbackStatus.SENT
-    ).count()
+    surveys_sent      = q_clients.count()
+    feedback_sent     = q_clients.filter(Client.feedback_status == FeedbackStatus.SENT).count()
+    feedback_not_sent = q_clients.filter(Client.feedback_status == FeedbackStatus.NOT_SENT).count()
 
-    feedback_not_sent = session.query(Client).filter(
-        Client.feedback_status == FeedbackStatus.NOT_SENT
-    ).count()
-
+    # Misunderstanding: filter by Survey.contact_date within the period
     mis_q = (
         session.query(Survey.client_id)
         .filter(Survey.misunderstanding == Misunderstanding.YES)
-        .distinct()
     )
+    if from_date:
+        mis_q = mis_q.filter(Survey.contact_date >= from_date)
+    if to_date:
+        mis_q = mis_q.filter(Survey.contact_date <= to_date)
     misunderstanding = session.query(Client).filter(
-        Client.id.in_(mis_q)
+        Client.id.in_(mis_q.distinct())
     ).count()
 
+    # Resolved: filter by Survey.contact_date within the period
     q_res = session.query(Survey).filter(
         Survey.situation_status == SituationStatus.RESOLVED
     )
