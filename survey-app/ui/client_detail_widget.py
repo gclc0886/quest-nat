@@ -231,12 +231,24 @@ class ClientDetailDialog(QDialog):
             self._duration_lbl.setText("⚠ Дата окончания раньше даты начала")
             self._duration_lbl.setStyleSheet("color: #dc3545; font-style: italic;")
             return
-        # Temporarily create a mock client to reuse the property logic
-        from models import Client as _C
-        tmp = _C.__new__(_C)
-        tmp.start_date = start
-        tmp.end_date   = end
-        text = tmp.duration_display or "0 дн"
+        from calendar import monthrange
+        y1, m1, d1 = start.year, start.month, start.day
+        y2, m2, d2 = end.year,   end.month,   end.day
+        months = (y2 - y1) * 12 + (m2 - m1)
+        if d2 < d1:
+            months -= 1
+            prev_m = m2 - 1 if m2 > 1 else 12
+            prev_y = y2 if m2 > 1 else y2 - 1
+            prev_last = monthrange(prev_y, prev_m)[1]
+            days = (prev_last - d1) + d2 + 1
+        else:
+            days = d2 - d1
+        parts = []
+        if months:
+            parts.append(f"{months} мес")
+        if days:
+            parts.append(f"{days} дн")
+        text = " ".join(parts) or "0 дн"
         self._duration_lbl.setText(text)
         self._duration_lbl.setStyleSheet("color: #6c757d; font-style: italic;")
 
