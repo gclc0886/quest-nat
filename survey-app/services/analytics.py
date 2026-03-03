@@ -112,7 +112,10 @@ def get_satisfaction_stats(session: Session,
     q = (
         session.query(Survey)
         .filter(Survey.satisfaction.isnot(None))
-        .filter(Survey.situation_status != SituationStatus.RESOLVED)
+        .filter(
+            (Survey.situation_status.is_(None)) |
+            (Survey.situation_status != SituationStatus.RESOLVED)
+        )
     )
     if from_date:
         q = q.filter(Survey.contact_date >= from_date)
@@ -235,7 +238,10 @@ def get_monthly_trend(session: Session,
         session.query(Survey)
         .filter(Survey.contact_date.isnot(None))
         .filter(Survey.satisfaction.isnot(None))
-        .filter(Survey.situation_status != SituationStatus.RESOLVED)
+        .filter(
+            (Survey.situation_status.is_(None)) |
+            (Survey.situation_status != SituationStatus.RESOLVED)
+        )
     )
     if from_date:
         q = q.filter(Survey.contact_date >= from_date)
