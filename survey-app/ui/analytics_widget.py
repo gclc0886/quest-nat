@@ -296,22 +296,27 @@ class AnalyticsWidget(QWidget):
 
         # ── Survey feedback KPIs ──────────────────────────────────────
         fb = s.survey_feedback
-        self._card_sent.set_value(str(fb.surveys_sent), _BLUE)
-        self._card_fb_yes.set_value(str(fb.feedback_sent), _GREEN)
-        if fb.surveys_sent > 0:
-            no_pct = fb.feedback_not_sent / fb.surveys_sent * 100
-            fb_no_text = f"{fb.feedback_not_sent} ({no_pct:.0f}%)"
-        else:
-            fb_no_text = str(fb.feedback_not_sent)
+        base = fb.surveys_sent  # denominator for all percentages
+
+        def _fmt(n: int) -> str:
+            """'N (X%)' when base > 0, else just 'N'."""
+            if base > 0:
+                return f"{n} ({n / base * 100:.0f}%)"
+            return str(n)
+
+        self._card_sent.set_value(str(base), _BLUE)
+        self._card_fb_yes.set_value(
+            _fmt(fb.feedback_sent), _GREEN,
+        )
         self._card_fb_no.set_value(
-            fb_no_text,
+            _fmt(fb.feedback_not_sent),
             _YELLOW if fb.feedback_not_sent > 0 else _GREEN,
         )
         self._card_mis.set_value(
-            str(fb.misunderstanding),
+            _fmt(fb.misunderstanding),
             _RED if fb.misunderstanding > 0 else _GREEN,
         )
-        self._card_resolved.set_value(str(fb.resolved), _GREEN)
+        self._card_resolved.set_value(_fmt(fb.resolved), _GREEN)
 
     # ------------------------------------------------------------------
     # Trend line chart
